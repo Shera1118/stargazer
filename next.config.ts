@@ -10,4 +10,17 @@ const nextConfig: import('next').NextConfig = {
   },
 };
 
+export default nextConfig;/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'export',
+  trailingSlash: true,
+  images: { unoptimized: true },
+  // 告诉 Next.js 你的 app 目录在 src/app 下
+  experimental: {
+    appDir: true,
+  },
+  // 如果你的文件在 src/app 里，需要指定目录
+  dir: './src',
+};
+
 export default nextConfig;
