@@ -1,0 +1,5265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>空白帧 — Blank Frame</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; }
+body { -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
+input, textarea { -webkit-user-select: text; user-select: text; }
+body {
+  background: #06060b;
+  font-family: 'PingFang SC', 'Noto Serif SC', 'STSong', 'Songti SC', serif;
+  color: #ffffff;
+  -webkit-font-smoothing: antialiased;
+  font-size: 18px;
+}
+
+#scene {
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 0; pointer-events: none;
+}
+
+.scene {
+  position: fixed; inset: 0; z-index: 1;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity 1.2s ease;
+}
+.scene.active { opacity: 1; pointer-events: auto; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn { to { opacity: 1; } }
+@keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
+@keyframes breathe { 0%, 100% { transform: scale(0.95); opacity: 0.3; } 50% { transform: scale(1.1); opacity: 0.7; } }
+@keyframes drift { 0% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(10px, -15px) rotate(3deg); } 100% { transform: translate(0, 0) rotate(0deg); } }
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+@keyframes rippleExpand {
+  from { transform: scale(0); opacity: 0.6; }
+  to { transform: scale(1); opacity: 0; }
+}
+@keyframes weatherFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes typingPop {
+  0% { transform: scale(0); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.8; }
+  100% { transform: scale(0); opacity: 0; }
+}
+
+/* ===== LANDING ===== */
+#landing {
+  background: #fff;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+#landingTitle {
+  position: absolute;
+  font-size: clamp(3rem, 10vw, 7rem);
+  font-weight: 200;
+  letter-spacing: 0.3em;
+  color: #000;
+  text-align: center;
+  width: 100%;
+  top: 18vh;
+  left: 50%;
+  transform: translateX(-50%);
+  transition: color 0.8s ease;
+  user-select: none;
+  z-index: 2;
+}
+#landingTitle.turn-white { color: #fff; }
+
+#blackBall {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 0; height: 0;
+  border-radius: 50%;
+  background: #000;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+#wordLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.fly-word {
+  position: absolute;
+  font-family: 'PingFang SC', serif;
+  font-weight: 300;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+}
+
+#landingParticles {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+#landingSub {
+  position: absolute;
+  font-size: clamp(0.9rem, 2.5vw, 1.2rem);
+  font-weight: 300;
+  letter-spacing: 0.2em;
+  color: #b0a8a0;
+  text-align: center;
+  width: 100%;
+  top: 58vh;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 1s ease;
+  z-index: 5;
+  pointer-events: none;
+}
+#landingSub.visible { opacity: 1; }
+
+#enterBtn {
+  position: absolute;
+  top: 66vh;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1.1rem 3.5rem;
+  border: 1px solid rgba(200, 170, 120, 0.3);
+  background: transparent;
+  font-family: inherit;
+  font-size: 1.05rem;
+  letter-spacing: 0.18em;
+  color: #c0b8b0;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 1s ease, all 0.6s ease;
+  border-radius: 2px;
+  z-index: 5;
+  pointer-events: none;
+}
+#enterBtn.visible { opacity: 1; pointer-events: auto; }
+#enterBtn:hover {
+  background: rgba(200, 170, 120, 0.2);
+  border-color: rgba(200, 170, 120, 0.6);
+  color: #c8aa78;
+  box-shadow: 0 0 30px rgba(200, 170, 120, 0.08);
+}
+
+#clickHint {
+  position: absolute;
+  bottom: 12vh;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.9rem;
+  letter-spacing: 0.15em;
+  color: #666;
+  animation: pulse 2s ease-in-out infinite;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+#clickHint.visible { opacity: 1; }
+
+/* ===== EMOTION INPUT ===== */
+#emotionInput .card {
+  background: rgba(15, 14, 18, 0.75);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(200, 170, 120, 0.2);
+  border-radius: 14px; padding: 2.5rem 2.8rem;
+  max-width: 600px; width: 90%;
+  animation: fadeUp 0.8s ease forwards;
+  position: relative;
+}
+#emotionInput .card h2 {
+  font-size: 1.3rem; font-weight: 300;
+  letter-spacing: 0.15em; color: #a09890;
+  margin-bottom: 1.8rem; text-align: center;
+}
+#emotionInput textarea {
+  width: 100%; min-height: 130px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(200, 170, 120, 0.2);
+  border-radius: 10px; padding: 1.1rem 1.3rem;
+  color: #e0dcd7; font-family: inherit;
+  font-size: 1.1rem; line-height: 1.7;
+  resize: vertical; outline: none;
+  transition: border-color 0.4s ease;
+  position: relative;
+}
+#emotionInput textarea::placeholder { color: #4a4640; }
+#emotionInput textarea:focus { border-color: rgba(200, 170, 120, 0.3); }
+#emotionInput .spectrum-bar {
+  height: 3px; margin-top: 1rem;
+  background: linear-gradient(90deg, #7080b0, #b89098, #c8a070, #90b8a0, #90a0b8, #c0a860);
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
+  border-radius: 2px; opacity: 0;
+  transition: opacity 0.6s ease;
+}
+#emotionInput .spectrum-bar.visible { opacity: 1; }
+
+/* Typing particle container */
+.typing-particle {
+  position: absolute;
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: typingPop 0.6s ease forwards;
+}
+
+.mood-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 0.8rem; margin-top: 1.4rem;
+}
+.mood-btn {
+  padding: 0.8rem 0.5rem;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.02);
+  color: #b0a8a0; font-family: inherit;
+  font-size: 0.95rem; letter-spacing: 0.08em;
+  cursor: pointer; border-radius: 8px;
+  transition: all 0.3s ease; text-align: center;
+}
+.mood-btn:hover, .mood-btn.selected {
+  border-color: rgba(200, 170, 120, 0.35);
+  background: rgba(200, 170, 120, 0.08);
+  color: #c8aa78;
+}
+#submitEmotion {
+  display: block; margin: 1.6rem auto 0;
+  padding: 0.85rem 2.8rem;
+  border: 1px solid rgba(200, 170, 120, 0.25);
+  background: rgba(200, 170, 120, 0.06);
+  color: #c0b8b0; font-family: inherit;
+  font-size: 1rem; letter-spacing: 0.15em;
+  cursor: pointer; border-radius: 8px;
+  transition: all 0.4s ease;
+}
+#submitEmotion:hover {
+  background: rgba(200, 170, 120, 0.15);
+  color: #c8aa78;
+}
+#skipBtn {
+  display: block; margin: 0.8rem auto 0;
+  padding: 0.6rem 1.8rem; border: none;
+  background: none; color: #4a4640;
+  font-family: inherit; font-size: 0.92rem;
+  letter-spacing: 0.1em; cursor: pointer;
+  transition: color 0.3s ease;
+}
+#skipBtn:hover { color: #6a6660; }
+
+/* ===== MAIN SPACE ===== */
+#mainSpace { width: 100%; height: 100%; position: relative; }
+
+/* Breathing sphere - draggable */
+#breathSphere {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 110px; height: 110px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(200,170,120,0.25) 0%, rgba(200,170,120,0.05) 50%, transparent 70%);
+  box-shadow: 0 0 60px rgba(200,170,120,0.1), 0 0 120px rgba(200,170,120,0.05);
+  cursor: grab; transition: transform 0.1s ease, box-shadow 0.3s ease;
+  z-index: 2; user-select: none; -webkit-user-select: none;
+}
+#breathSphere:active { cursor: grabbing; }
+#breathSphere.pressing { transform: translate(-50%, -50%) scale(1.4); }
+#breathSphere .ring {
+  position: absolute; inset: -20px; border-radius: 50%;
+  border: 1px solid rgba(200,170,120,0.08);
+  animation: breathe 6s ease-in-out infinite;
+}
+#breathSphere .ring:nth-child(2) { inset: -40px; animation-delay: -2s; opacity: 0.5; }
+#breathSphere .ring:nth-child(3) { inset: -60px; animation-delay: -4s; opacity: 0.3; }
+
+#hint {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.85rem; letter-spacing: 0.12em;
+  color: #c0b8b0; text-align: center;
+  animation: pulse 4s ease-in-out infinite;
+  white-space: nowrap; z-index: 5;
+  transition: opacity 2s ease;
+  pointer-events: none;
+}
+#hint.hidden { opacity: 0 !important; pointer-events: none; }
+
+#returnBtn {
+  padding: 0.65rem 1rem;
+  border: 1px solid rgba(200, 170, 120, 0.35);
+  background: rgba(20, 18, 24, 0.6);
+  backdrop-filter: blur(10px);
+  color: #a09890; font-family: inherit;
+  font-size: 0.88rem; letter-spacing: 0.08em;
+  cursor: pointer; border-radius: 6px;
+  transition: all 0.3s ease;
+  text-align: left;
+}
+#returnBtn:hover { border-color: rgba(200, 170, 120, 0.5); color: #c0b8b0; }
+
+/* Time counter */
+#timeCounter {
+  position: absolute; top: 2rem; left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.88rem; letter-spacing: 0.15em;
+  color: #a09890; z-index: 3;
+  text-align: center;
+}
+#timeCounter .time-label {
+  font-size: 0.8rem; color: #908880;
+  margin-bottom: 0.2rem;
+}
+#timeCounter .time-value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== AUDIO MIXER ===== */
+#mixer {
+  position: absolute; bottom: 3rem; left: 50%;
+  transform: translateX(-50%);
+  display: flex; align-items: center;
+  gap: 1.2rem; padding: 0.8rem 1.6rem;
+  background: rgba(15, 14, 18, 0.6);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(200, 170, 120, 0.08);
+  border-radius: 40px; z-index: 3;
+}
+.mixer-track { display: flex; align-items: center; gap: 0.6rem; }
+.mixer-track .label {
+  font-size: 0.9rem; color: #5a5650;
+  letter-spacing: 0.08em; white-space: nowrap;
+}
+.mixer-track .icon { font-size: 1.3rem; opacity: 0.5; transition: opacity 0.3s; }
+.mixer-track .icon.active { opacity: 1; }
+.mixer-track img.icon { opacity: 0.5; filter: brightness(0.7); transition: all 0.3s; }
+.mixer-track img.icon.active { opacity: 1; filter: brightness(1); }
+.mixer-track input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 80px; height: 4px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 2px; outline: none; cursor: pointer;
+}
+.mixer-track input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px;
+  border-radius: 50%; background: rgba(200, 170, 120, 0.5);
+  border: none; cursor: pointer; transition: background 0.3s;
+}
+.mixer-track input[type="range"]::-webkit-slider-thumb:hover {
+  background: rgba(200, 170, 120, 0.8);
+}
+
+/* ===== EMOTION HISTORY ===== */
+#emotionHistory {
+  position: absolute; top: 2rem; right: 2rem;
+  max-width: 260px; z-index: 3;
+}
+#emotionHistory .history-item {
+  padding: 0.6rem 1.1rem; margin-bottom: 0.4rem;
+  font-size: 0.9rem; color: #5a5650;
+  letter-spacing: 0.06em;
+  background: rgba(15, 14, 18, 0.4);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(200, 170, 120, 0.05);
+  border-radius: 8px;
+  animation: fadeIn 0.8s ease forwards; opacity: 0;
+}
+#emotionHistory .empty-hint {
+  font-size: 0.88rem; color: #908880; letter-spacing: 0.08em;
+}
+
+/* ===== FLOATING FRAGMENTS ===== */
+#fragments {
+  position: absolute; inset: 0;
+  pointer-events: none; z-index: 1;
+  overflow: hidden;
+}
+.fragment {
+  position: absolute;
+  font-size: 0.88rem; color: rgba(100, 96, 90, 0.35);
+  letter-spacing: 0.05em;
+  animation: drift 12s ease-in-out infinite;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* ===== TOOLBAR ===== */
+#toolbar {
+  position: absolute; top: 2rem;
+  left: 2rem; display: flex; flex-direction: column;
+  gap: 0.5rem; z-index: 3;
+}
+.tool-btn {
+  padding: 0.65rem 1rem;
+  border: 1px solid rgba(200, 170, 120, 0.35);
+  background: rgba(20, 18, 24, 0.6);
+  backdrop-filter: blur(10px);
+  color: #a09890; font-family: inherit;
+  font-size: 0.88rem; letter-spacing: 0.08em;
+  cursor: pointer; border-radius: 6px;
+  transition: all 0.3s ease;
+  text-align: left;
+}
+.tool-btn:hover { border-color: rgba(200, 170, 120, 0.5); color: #c0b8b0; }
+.tool-btn.active { border-color: rgba(200, 170, 120, 0.55); color: #c8aa78; background: rgba(200, 170, 120, 0.12); }
+.tool-collect-btn {
+  display: block; text-decoration: none;
+  line-height: 1.4;
+}
+
+/* ===== BREATHING GUIDE OVERLAY ===== */
+#breathGuide {
+  position: fixed; inset: 0;
+  z-index: 20; pointer-events: none;
+  opacity: 0; transition: opacity 0.8s ease;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column;
+}
+#breathGuide.active { opacity: 1; pointer-events: auto; }
+#breathGuide .guide-text {
+  font-size: clamp(1.5rem, 3.5vw, 2.2rem);
+  font-weight: 300; letter-spacing: 0.2em;
+  color: #c8aa78;
+  margin-bottom: 2rem;
+  min-height: 3rem;
+}
+#breathGuide .guide-circle {
+  width: 160px; height: 160px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(200, 170, 120, 0.3);
+  transition: transform 4s ease-in-out;
+  position: relative;
+}
+#breathGuide .guide-circle.inhale { transform: scale(1.5); }
+#breathGuide .guide-circle.hold { transform: scale(1.5); }
+#breathGuide .guide-circle.exhale { transform: scale(1); }
+#breathGuide .guide-text-small {
+  font-size: 0.9rem; color: #5a5650;
+  margin-top: 1rem; letter-spacing: 0.1em;
+}
+#breathGuide .close-guide {
+  position: absolute; top: 2rem; right: 2rem;
+  padding: 0.55rem 1.2rem; border: 1px solid rgba(200, 170, 120, 0.2);
+  background: rgba(15, 14, 18, 0.6); backdrop-filter: blur(10px);
+  color: #b0a8a0; font-family: inherit;
+  font-size: 0.88rem; letter-spacing: 0.1em;
+  cursor: pointer; border-radius: 6px; z-index: 21;
+  pointer-events: auto;
+}
+
+/* ===== ZEN GARDEN ===== */
+#zenGarden {
+  position: absolute; inset: 0;
+  z-index: 2; pointer-events: none;
+}
+
+/* ===== ZEN TOOLBAR ===== */
+#zenToolbar {
+  position: fixed;
+  top: 2rem; left: 50%;
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(15, 14, 18, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(200, 170, 120, 0.08);
+  border-radius: 20px;
+  z-index: 50;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+#zenToolbar.active {
+  opacity: 1; pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+.zen-tool-btn {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid rgba(200, 170, 120, 0.15);
+  background: rgba(15, 14, 18, 0.5);
+  backdrop-filter: blur(8px);
+  color: #908880; font-family: inherit;
+  font-size: 0.82rem; letter-spacing: 0.08em;
+  cursor: pointer; border-radius: 14px;
+  transition: all 0.25s ease; white-space: nowrap;
+}
+.zen-tool-btn:hover {
+  border-color: rgba(200, 170, 120, 0.45);
+  color: #c0b8b0; background: rgba(200, 170, 120, 0.08);
+}
+.zen-tool-btn:active {
+  transform: scale(0.95);
+}
+.zen-tool-btn#zenClose:hover {
+  border-color: rgba(200, 120, 120, 0.5);
+  color: #d09898;
+}
+
+/* ===== SEASON SELECTOR ===== */
+#seasonSelector {
+  position: absolute; bottom: 8rem; left: 50%;
+  transform: translateX(-50%);
+  display: flex; gap: 0.6rem;
+  padding: 0.5rem 1rem;
+  background: rgba(15, 14, 18, 0.5);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(200, 170, 120, 0.06);
+  border-radius: 30px; z-index: 3;
+}
+.season-btn {
+  padding: 0.45rem 1rem;
+  border: none; background: none;
+  color: #a09890; font-family: inherit;
+  font-size: 0.85rem; letter-spacing: 0.08em;
+  cursor: pointer; border-radius: 14px;
+  transition: all 0.3s ease;
+}
+.season-btn:hover { color: #c0b8b0; }
+.season-btn.active { color: #c8aa78; background: rgba(200, 170, 120, 0.2); }
+
+/* ===== DISSOLVE OVERLAY ===== */
+#dissolveOverlay {
+  position: fixed; inset: 0;
+  z-index: 10; pointer-events: none;
+  opacity: 0; transition: opacity 0.6s ease;
+}
+#dissolveOverlay.active { opacity: 1; }
+
+/* ===== MELODY TOGGLE ===== */
+#melodyToggle {
+  padding: 0.65rem 1rem;
+  border: 1px solid rgba(200, 170, 120, 0.35);
+  background: rgba(20, 18, 24, 0.6);
+  backdrop-filter: blur(10px);
+  color: #a09890; font-family: inherit;
+  font-size: 0.88rem; letter-spacing: 0.08em;
+  cursor: pointer; border-radius: 6px;
+  transition: all 0.3s ease;
+  text-align: left;
+}
+#melodyToggle:hover { border-color: rgba(200, 170, 120, 0.5); color: #c0b8b0; }
+#melodyToggle.active { color: #c8aa78; border-color: rgba(200, 170, 120, 0.55); background: rgba(200, 170, 120, 0.12); }
+
+/* ===== RIPPLE ===== */
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(200, 170, 120, 0.3);
+  pointer-events: none;
+  animation: rippleExpand 1.5s ease-out forwards;
+  z-index: 1;
+}
+
+/* ===== EMOTIONAL WEATHER ===== */
+#weatherWidget {
+  position: absolute;
+  bottom: 8rem; left: 2rem;
+  padding: 0.6rem 1rem;
+  background: rgba(15, 14, 18, 0.5);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(200, 170, 120, 0.06);
+  border-radius: 8px;
+  z-index: 3;
+  text-align: center;
+  min-width: 80px;
+}
+#weatherWidget .weather-icon {
+  font-size: 1.8rem;
+  animation: weatherFloat 3s ease-in-out infinite;
+}
+#weatherWidget .weather-label {
+  font-size: 0.82rem;
+  color: #b0a8a0;
+  letter-spacing: 0.08em;
+  margin-top: 0.2rem;
+}
+
+/* ===== BREATHING PATTERN SELECTOR ===== */
+#breathPatternSelector {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.breath-pattern-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid rgba(200, 170, 120, 0.15);
+  background: rgba(255,255,255,0.02);
+  color: #ffffff; font-family: inherit;
+  font-size: 0.88rem; letter-spacing: 0.08em;
+  cursor: pointer; border-radius: 24px;
+  transition: all 0.3s ease;
+}
+.breath-pattern-btn:hover { border-color: rgba(200, 170, 120, 0.3); color: #f0ede8; }
+.breath-pattern-btn.active { border-color: rgba(200, 170, 120, 0.5); color: #c8aa78; background: rgba(200, 170, 120, 0.2); }
+
+/* ===== AUDIO PRESET BUTTONS ===== */
+#presets {
+  position: absolute; bottom: 8rem;
+  right: 2rem;
+  display: flex; flex-direction: column;
+  gap: 0.3rem; z-index: 3;
+}
+.preset-btn {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid rgba(200, 170, 120, 0.08);
+  background: rgba(15, 14, 18, 0.4);
+  backdrop-filter: blur(10px);
+  color: #a09890; font-family: inherit;
+  font-size: 0.82rem; letter-spacing: 0.06em;
+  cursor: pointer; border-radius: 14px;
+  transition: all 0.3s ease;
+  text-align: left;
+}
+.preset-btn:hover { border-color: rgba(200, 170, 120, 0.3); color: #c0b8b0; }
+.preset-btn.active { color: #c8aa78; border-color: rgba(200, 170, 120, 0.4); }
+
+/* ===== GENERATIVE ART TOAST ===== */
+#saveToast {
+  position: fixed;
+  bottom: 2rem; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  padding: 0.6rem 1.4rem;
+  background: rgba(15, 14, 18, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(200, 170, 120, 0.15);
+  border-radius: 8px;
+  color: #ffffff; font-family: inherit;
+  font-size: 0.88rem; letter-spacing: 0.1em;
+  z-index: 30; opacity: 0;
+  transition: all 0.4s ease;
+  pointer-events: none;
+}
+#saveToast.visible {
+  opacity: 1; transform: translateX(-50%) translateY(0);
+}
+
+/* ===== SHOOTING STARS ===== */
+.shooting-star {
+  position: absolute;
+  pointer-events: auto;
+  z-index: 2;
+  cursor: pointer;
+}
+.shooting-star .star-core {
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 8px 2px rgba(255,255,255,0.8), 0 0 20px 4px rgba(200,170,120,0.4);
+}
+.shooting-star .star-tail {
+  position: absolute;
+  top: 2px; left: 4px;
+  width: 60px; height: 1px;
+  background: linear-gradient(to left, rgba(255,255,255,0.6), rgba(200,170,120,0.2), transparent);
+  transform-origin: left center;
+}
+
+/* ===== WISH BURST ===== */
+.wish-burst {
+  position: absolute;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* ===== FLOATING EMOJI ===== */
+.floating-emoji {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+  font-size: 1.2rem;
+  animation: emojiRise 8s ease-out forwards;
+}
+@keyframes emojiRise {
+  0% { transform: translateY(0) scale(0.5) rotate(0deg); opacity: 0; }
+  10% { opacity: 0.6; transform: translateY(-10vh) scale(1) rotate(-5deg); }
+  80% { opacity: 0.3; }
+  100% { transform: translateY(-70vh) scale(0.6) rotate(10deg); opacity: 0; }
+}
+
+/* ===== EMOTION COUNTER ===== */
+#emotionCounter {
+  position: absolute;
+  top: 5rem; left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 2s ease;
+}
+#emotionCounter.visible { opacity: 1; }
+#emotionCounter .counter-label {
+  font-size: 0.82rem; color: #908880;
+  letter-spacing: 0.12em;
+}
+#emotionCounter .counter-value {
+  font-size: 1rem; color: #6a6660;
+  letter-spacing: 0.1em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== CONSTELLATION STARS ===== */
+.constellation-star {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+}
+.constellation-star .star-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: rgba(200,170,120,0.7);
+  box-shadow: 0 0 10px rgba(200,170,120,0.4);
+  animation: pulse 3s ease-in-out infinite;
+}
+.constellation-star .star-label {
+  font-size: 0.72rem;
+  color: rgba(200,170,120,0.3);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  margin-top: 0.3rem;
+  text-align: center;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ===== TIME CAPSULE (in toolbar) ===== */
+#timeCapsule {
+  padding: 0.65rem 1rem;
+  border: 1px solid rgba(200,170,120,0.35);
+  background: rgba(20,18,24,0.6);
+  backdrop-filter: blur(10px);
+  color: #a09890; font-family: inherit;
+  font-size: 0.88rem; letter-spacing: 0.08em;
+  cursor: pointer; border-radius: 6px;
+  transition: all 0.3s ease;
+  text-align: left;
+}
+#timeCapsule:hover { border-color: rgba(200,170,120,0.5); color: #c0b8b0; }
+
+#timeCapsuleModal {
+  position: fixed; inset: 0;
+  z-index: 25; pointer-events: none;
+  opacity: 0; transition: opacity 0.6s ease;
+  display: flex; align-items: center; justify-content: center;
+}
+#timeCapsuleModal.active { opacity: 1; pointer-events: auto; }
+#timeCapsuleModal .capsule-content {
+  background: rgba(15,14,18,0.85);
+  backdrop-filter: blur(30px);
+  border: 1px solid rgba(200,170,120,0.15);
+  border-radius: 12px; padding: 2rem 2.5rem;
+  max-width: 420px; width: 90%;
+  text-align: center;
+}
+#timeCapsuleModal h3 {
+  font-size: 1.2rem; font-weight: 300;
+  letter-spacing: 0.15em; color: #a09890;
+  margin-bottom: 1.2rem;
+}
+#timeCapsuleModal textarea {
+  width: 100%; min-height: 90px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(200,170,120,0.1);
+  border-radius: 10px; padding: 0.9rem 1.1rem;
+  color: #ffffff; font-family: inherit;
+  font-size: 1rem; line-height: 1.7;
+  resize: none; outline: none;
+}
+#timeCapsuleModal textarea::placeholder { color: #f0ede8; }
+#timeCapsuleModal .capsule-time {
+  margin-top: 1rem;
+  font-size: 0.88rem; color: #f0ede8;
+  letter-spacing: 0.08em;
+}
+#timeCapsuleModal .capsule-time select {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(200,170,120,0.15);
+  color: #ffffff; font-family: inherit;
+  font-size: 0.88rem; padding: 0.4rem 0.6rem;
+  border-radius: 6px; outline: none;
+  cursor: pointer;
+}
+#timeCapsuleModal .capsule-btn {
+  margin-top: 1.2rem;
+  padding: 0.6rem 2rem;
+  border: 1px solid rgba(200,170,120,0.2);
+  background: rgba(200,170,120,0.06);
+  color: #ffffff; font-family: inherit;
+  font-size: 0.95rem; letter-spacing: 0.12em;
+  cursor: pointer; border-radius: 8px;
+  transition: all 0.3s ease;
+}
+#timeCapsuleModal .capsule-btn:hover { background: rgba(200,170,120,0.15); color: #c8aa78; }
+#timeCapsuleModal .close-capsule {
+  position: absolute; top: 1rem; right: 1rem;
+  padding: 0.4rem 1rem; border: none;
+  background: none; color: #f0ede8;
+  font-family: inherit; font-size: 0.88rem;
+  cursor: pointer;
+}
+
+/* ===== DRAG TRAIL ===== */
+.drag-trail {
+  position: absolute;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+  background: rgba(200,170,120,0.3);
+  box-shadow: 0 0 8px rgba(200,170,120,0.15);
+  animation: fadeTrail 2s ease forwards;
+}
+@keyframes fadeTrail {
+  from { opacity: 0.5; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.2); }
+}
+
+/* ===== MEMORY JAR (in toolbar) ===== */
+#memoryJar {
+  padding: 0.65rem 1rem;
+  border: 1px solid rgba(200,170,120,0.35);
+  background: rgba(20,18,24,0.6);
+  backdrop-filter: blur(10px);
+  color: #a09890; font-family: inherit;
+  font-size: 0.88rem; letter-spacing: 0.08em;
+  cursor: pointer; border-radius: 6px;
+  transition: all 0.3s ease;
+  text-align: left;
+}
+#memoryJar:hover { border-color: rgba(200,170,120,0.5); color: #c0b8b0; }
+
+/* ===== MEMORY JAR MODAL ===== */
+#memoryJarModal {
+  position: fixed; inset: 0;
+  z-index: 25; pointer-events: none;
+  opacity: 0; transition: opacity 0.6s ease;
+  display: flex; align-items: center; justify-content: center;
+}
+#memoryJarModal.active { opacity: 1; pointer-events: auto; }
+#memoryJarModal .jar-content {
+  position: relative;
+  background: rgba(15,14,18,0.85);
+  backdrop-filter: blur(30px);
+  border: 1px solid rgba(200,170,120,0.15);
+  border-radius: 12px; padding: 2rem 2.5rem;
+  max-width: 400px; width: 90%;
+  text-align: center;
+}
+#memoryJarModal h3 {
+  font-size: 1.2rem; font-weight: 300;
+  letter-spacing: 0.15em; color: #f0ede8;
+  margin-bottom: 1rem;
+}
+#memoryJarModal .jar-count {
+  font-size: 1rem; color: #c8aa78;
+  letter-spacing: 0.1em;
+}
+#memoryJarModal .close-jar {
+  position: absolute; top: 1rem; right: 1rem;
+  padding: 0.4rem 1rem; border: none;
+  background: none; color: #f0ede8;
+  font-family: inherit; font-size: 0.88rem;
+  cursor: pointer;
+}
+
+/* ===== MOOD CHART ===== */
+#moodChart {
+  position: absolute;
+  bottom: 8rem; left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  opacity: 0;
+  transition: opacity 1.5s ease;
+  pointer-events: none;
+}
+#moodChart.visible { opacity: 0.7; }
+
+/* ===== SILENCE MILESTONE ===== */
+#silenceMsg {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+  font-size: 0.85rem;
+  color: #ffffff;
+  letter-spacing: 0.15em;
+  opacity: 0;
+  transition: opacity 3s ease;
+  pointer-events: none;
+  text-align: center;
+  white-space: nowrap;
+}
+#silenceMsg.visible { opacity: 1; }
+
+/* ===== AUDIO WAVEFORM ===== */
+#audioWaveform {
+  position: absolute;
+  bottom: 6rem; left: 50%;
+  transform: translateX(-50%);
+  width: 200px; height: 30px;
+  z-index: 2; pointer-events: none;
+  opacity: 0; transition: opacity 1s ease;
+}
+#audioWaveform.active { opacity: 1; }
+
+/* ===== ECHO FRAGMENTS ===== */
+.echo-fragment {
+  position: absolute;
+  font-size: 0.85rem;
+  color: rgba(100,96,90,0.25);
+  letter-spacing: 0.06em;
+  pointer-events: none;
+  z-index: 1;
+  white-space: nowrap;
+  animation: echoDrift 20s linear forwards;
+}
+@keyframes echoDrift {
+  from { transform: translateX(100vw); opacity: 0; }
+  10% { opacity: 0.25; }
+  90% { opacity: 0.25; }
+  to { transform: translateX(-100%); opacity: 0; }
+}
+
+/* ===== STAR SANDBOX ===== */
+#starSandbox {
+  display: none;
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: #06060b; z-index: 5000;
+}
+#starSandbox.active { display: block; }
+
+#sandboxCanvas {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 0; cursor: crosshair; pointer-events: auto;
+}
+
+#sandboxTools {
+  position: fixed; top: 2rem; left: 2rem;
+  display: flex; flex-direction: column;
+  gap: 0.4rem; z-index: 5200;
+}
+#sandboxTools .tool-btn {
+  padding: 0.45rem 0.7rem;
+  border: 1px solid rgba(200, 170, 120, 0.1);
+  background: rgba(15, 14, 18, 0.5);
+  backdrop-filter: blur(12px);
+  color: #4a4640; font-family: inherit;
+  font-size: 0.88rem; letter-spacing: 0.08em;
+  cursor: pointer; border-radius: 8px;
+  transition: all 0.25s ease;
+  text-align: left; min-width: 100px;
+}
+#sandboxTools .tool-btn:hover {
+  border-color: rgba(200, 170, 120, 0.5);
+  color: #c0b8b0;
+}
+#sandboxTools .tool-btn.active {
+  border-color: rgba(200, 170, 120, 0.55);
+  color: #c8aa78;
+  background: rgba(200, 170, 120, 0.12);
+}
+
+#sbPropertyPanel {
+  position: fixed; top: 2rem; right: 5rem;
+  padding: 0.8rem 1rem;
+  background: rgba(15, 14, 18, 0.7);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(200, 170, 120, 0.1);
+  border-radius: 8px; z-index: 5200;
+  min-width: 160px;
+  transition: all 0.3s ease;
+}
+#sbPropertyPanel.hidden { opacity: 0; pointer-events: none; transform: translateX(10px); }
+.sb-prop-title {
+  font-size: 0.82rem; color: #908880;
+  letter-spacing: 0.08em; margin-bottom: 0.6rem;
+  border-bottom: 1px solid rgba(200,170,120,0.08);
+  padding-bottom: 0.3rem;
+}
+.sb-prop-row { margin-bottom: 0.5rem; }
+.sb-prop-label {
+  display: block; font-size: 0.82rem;
+  color: #a09890; letter-spacing: 0.08em;
+  margin-bottom: 0.2rem;
+}
+.sb-prop-slider {
+  width: 100%; -webkit-appearance: none; appearance: none;
+  height: 3px; background: rgba(255,255,255,0.08);
+  border-radius: 2px; outline: none; cursor: pointer;
+}
+.sb-prop-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 10px; height: 10px;
+  border-radius: 50%; background: rgba(200,170,120,0.6);
+  border: none; cursor: pointer;
+}
+.sb-prop-color {
+  width: 100%; height: 24px; border: none;
+  background: transparent; cursor: pointer; padding: 0;
+}
+.sb-prop-color::-webkit-color-swatch-wrapper { padding: 0; }
+.sb-prop-color::-webkit-color-swatch {
+  border: 1px solid rgba(200,170,120,0.2);
+  border-radius: 4px;
+}
+
+#sbBottomBar {
+  position: fixed; bottom: 1.5rem; left: 50%;
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: 1rem;
+  padding: 0.6rem 1.2rem;
+  background: rgba(15, 14, 18, 0.6);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(200, 170, 120, 0.06);
+  border-radius: 30px; z-index: 5200;
+}
+.sb-hint {
+  font-size: 0.82rem; color: #5a5650;
+  letter-spacing: 0.08em; white-space: nowrap;
+}
+.sb-action-btn {
+  padding: 0.5rem 1.1rem;
+  border: 1px solid rgba(200, 170, 120, 0.25);
+  background: rgba(200, 170, 120, 0.06);
+  color: #6a6660; font-family: inherit;
+  font-size: 0.82rem; letter-spacing: 0.08em;
+  cursor: pointer; border-radius: 16px;
+  transition: all 0.3s ease; white-space: nowrap;
+}
+.sb-action-btn:hover {
+  border-color: rgba(200, 170, 120, 0.5);
+  color: #c0b8b0; background: rgba(200, 170, 120, 0.12);
+}
+.sb-supernova-btn {
+  border-color: rgba(200, 170, 120, 0.3) !important;
+  color: #c8aa78 !important;
+  animation: sbSupernovaPulse 3s ease-in-out infinite;
+}
+.sb-supernova-btn:hover {
+  border-color: rgba(255, 200, 120, 0.7) !important;
+  background: rgba(200, 170, 120, 0.15) !important;
+  box-shadow: 0 0 15px rgba(200, 170, 120, 0.2);
+}
+@keyframes sbSupernovaPulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(200, 170, 120, 0); }
+  50% { box-shadow: 0 0 10px rgba(200, 170, 120, 0.15); }
+}
+
+#sbReturnBtn {
+  position: fixed; top: 2rem; right: 2rem;
+  padding: 0.55rem 1.2rem;
+  border: 1px solid rgba(200, 170, 120, 0.2);
+  background: rgba(15, 14, 18, 0.6);
+  backdrop-filter: blur(10px);
+  color: #a09890; font-family: inherit;
+  font-size: 0.88rem; letter-spacing: 0.08em;
+  cursor: pointer; border-radius: 6px; z-index: 5999;
+  transition: all 0.3s ease;
+}
+#sbReturnBtn:hover {
+  border-color: rgba(200, 170, 120, 0.5);
+  color: #c0b8b0;
+}
+
+#sbResultView {
+  position: fixed; inset: 0;
+  z-index: 5040; pointer-events: none;
+  opacity: 0; transition: opacity 0.5s ease;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(6, 6, 11, 0.85);
+  backdrop-filter: blur(8px);
+}
+#sbResultView.active { opacity: 1; pointer-events: auto; }
+.sb-result-card {
+  position: relative;
+  width: 420px; max-width: 92vw;
+  max-height: 85vh;
+  background: linear-gradient(175deg, rgba(18,16,22,0.97) 0%, rgba(10,10,16,0.98) 100%);
+  border: 1px solid rgba(200, 170, 120, 0.15);
+  border-radius: 16px;
+  overflow-y: auto;
+  transform: translateY(20px);
+  transition: transform 0.5s ease;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(200,170,120,0.05);
+}
+#sbResultView.active .sb-result-card { transform: translateY(0); }
+.sb-result-close {
+  position: absolute; top: 0.8rem; right: 1rem;
+  background: none; border: none; color: #908880;
+  font-size: 1.5rem; cursor: pointer; z-index: 5;
+}
+.sb-result-close:hover { color: #e2e8f0; }
+.sb-result-canvas-wrap {
+  padding: 2.5rem 1.8rem 1.2rem;
+}
+#sbResultCanvas {
+  display: block; width: 100%;
+  border: 1px solid rgba(200, 170, 120, 0.1);
+  border-radius: 10px;
+}
+.sb-result-body {
+  padding: 0 1.8rem 1.5rem;
+}
+.sb-result-title {
+  font-size: 1.3rem; font-weight: 300;
+  letter-spacing: 0.2em; color: #c8aa78;
+  margin-bottom: 0.5rem; text-align: center;
+}
+.sb-result-stats {
+  font-size: 0.75rem; color: #706860;
+  letter-spacing: 0.06em; margin-bottom: 0.8rem;
+  text-align: center;
+}
+.sb-result-divider {
+  height: 1px; margin: 1rem 0;
+  background: linear-gradient(90deg, transparent, rgba(200,170,120,0.15), transparent);
+}
+.sb-result-description {
+  font-size: 0.85rem; color: #a09890;
+  line-height: 1.8; letter-spacing: 0.1em;
+  text-align: center; margin-bottom: 0.5rem;
+}
+.sb-psych-section { margin-bottom: 1rem; }
+.sb-psych-title {
+  font-size: 0.88rem; color: #c8aa78; letter-spacing: 0.12em;
+  font-weight: 400; margin-bottom: 0.35rem;
+  border-left: 2px solid rgba(200,170,120,0.35);
+  padding-left: 0.6rem;
+}
+.sb-psych-text {
+  font-size: 0.82rem; color: #a09890; line-height: 1.85;
+  letter-spacing: 0.06em; text-indent: 2em;
+}
+.sb-healing {
+  margin-top: 1rem; padding: 1rem 1.2rem;
+  background: rgba(200, 170, 120, 0.04);
+  border: 1px solid rgba(200, 170, 120, 0.08);
+  border-radius: 10px; text-align: center;
+}
+.sb-healing-label {
+  font-size: 0.72rem; color: #706860;
+  letter-spacing: 0.15em; margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+.sb-healing-text {
+  font-size: 0.88rem; color: #c8aa78;
+  line-height: 1.9; letter-spacing: 0.1em;
+  font-style: italic;
+}
+.sb-result-actions {
+  padding: 0 1.8rem 2rem;
+  display: flex; gap: 0.8rem; justify-content: center;
+}
+
+/* ===== ZEN SAVE TOAST ===== */
+#zenSaveToast {
+  position: fixed;
+  bottom: 2rem; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  padding: 0.5rem 1.2rem;
+  background: rgba(15, 14, 18, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(200, 170, 120, 0.12);
+  border-radius: 20px;
+  color: #c8aa78; font-family: inherit;
+  font-size: 0.82rem; letter-spacing: 0.08em;
+  z-index: 60; opacity: 0;
+  transition: all 0.4s ease;
+  pointer-events: none;
+}
+#zenSaveToast.visible {
+  opacity: 1; transform: translateX(-50%) translateY(0);
+}
+
+/* ===== SANDBOX SAVE TOAST ===== */
+#sbSaveToast {
+  position: fixed;
+  bottom: 2rem; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  padding: 0.5rem 1.2rem;
+  background: rgba(15, 14, 18, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(200, 170, 120, 0.12);
+  border-radius: 20px;
+  color: #c8aa78; font-family: inherit;
+  font-size: 0.82rem; letter-spacing: 0.08em;
+  z-index: 5030; opacity: 0;
+  transition: all 0.4s ease;
+  pointer-events: none;
+}
+#sbSaveToast.visible {
+  opacity: 1; transform: translateX(-50%) translateY(0);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 600px) {
+  .mood-grid { grid-template-columns: repeat(2, 1fr); }
+  #emotionInput .card { padding: 1.8rem 1.5rem; }
+  #mixer { gap: 0.8rem; padding: 0.6rem 1rem; }
+  .mixer-track input[type="range"] { width: 60px; }
+  #breathSphere { width: 80px; height: 80px; }
+  #emotionHistory { top: 4rem; right: 1rem; max-width: 200px; }
+  #presets { bottom: 7rem; right: 1rem; }
+  #weatherWidget { bottom: 7rem; left: 1rem; }
+}
+</style>
+</head>
+<body>
+
+<canvas id="scene"></canvas>
+
+<!-- LANDING -->
+<div id="landing" class="scene active">
+  <div id="landingTitle">空白帧</div>
+  <div id="blackBall"></div>
+  <div id="wordLayer"></div>
+  <canvas id="landingParticles"></canvas>
+  <p class="sub" id="landingSub"></p>
+  <button id="enterBtn">进入空白</button>
+  <div id="clickHint">轻触屏幕</div>
+</div>
+
+<!-- EMOTION INPUT -->
+<div id="emotionInput" class="scene">
+  <div class="card" id="emotionCard">
+    <h2>此刻，你在想什么？</h2>
+    <textarea id="emotionText" placeholder="写下你想放下的事…不需要任何修饰，不需要任何人看到" rows="4"></textarea>
+    <div class="spectrum-bar" id="spectrumBar"></div>
+    <div class="mood-grid">
+      <button class="mood-btn" data-mood="tired">疲惫</button>
+      <button class="mood-btn" data-mood="anxious">焦虑</button>
+      <button class="mood-btn" data-mood="sad">低落</button>
+      <button class="mood-btn" data-mood="lost">迷茫</button>
+      <button class="mood-btn" data-mood="calm">平静</button>
+      <button class="mood-btn" data-mood="numb">麻木</button>
+      <button class="mood-btn" data-mood="angry">烦躁</button>
+      <button class="mood-btn" data-mood="hopeful">微光</button>
+    </div>
+    <button id="submitEmotion">放下</button>
+    <button id="skipBtn">暂不投递，直接进入</button>
+  </div>
+</div>
+
+<!-- MAIN SPACE -->
+<div id="mainSpace" class="scene">
+  <div id="toolbar">
+    <button class="tool-btn" id="returnBtn">← 重新投递</button>
+    <button class="tool-btn" id="btnBreathGuide"> 呼吸引导</button>
+    <button class="tool-btn" id="btnStarSandbox"> 星空沙盘</button>
+    <a href="http://localhost:3020" target="_blank" class="tool-btn tool-collect-btn">✦ 星轨收集</a>
+    <button class="tool-btn" id="btnZenGarden"> 禅意绘画</button>
+    <button class="tool-btn" id="timeCapsule">时光胶囊</button>
+    <button class="tool-btn" id="memoryJar">记忆罐</button>
+    <button class="tool-btn" id="melodyToggle">♪ 旋律</button>
+  </div>
+
+  <div id="timeCounter">
+    <div class="time-label">你在空白中度过了</div>
+    <div class="time-value" id="timeValue">0:00</div>
+  </div>
+
+  <div id="breathSphere">
+    <div class="ring"></div>
+    <div class="ring"></div>
+    <div class="ring"></div>
+  </div>
+  <div id="hint">长按光球 · 拖动星空 · 聆听白噪 · 点击涟漪</div>
+
+  <div id="fragments"></div>
+  <canvas id="zenGarden"></canvas>
+
+  <div id="zenToolbar">
+    <button class="zen-tool-btn" id="zenUndo" title="撤销上一笔">&#8617; 撤销</button>
+    <button class="zen-tool-btn" id="zenClear" title="清空画布">&#9851; 清空</button>
+    <button class="zen-tool-btn" id="zenSave" title="保存画稿">&#128229; 保存</button>
+    <button class="zen-tool-btn" id="zenClose" title="关闭禅意绘画">&times; 关闭</button>
+  </div>
+
+  <div id="emotionHistory">
+    <div class="empty-hint">投递的情绪将化为粒子，融入这片星空…</div>
+  </div>
+
+  <div id="emotionCounter">
+    <div class="counter-label">你已向星空释放了</div>
+    <div class="counter-value"><span id="counterValue">0</span> 次情绪</div>
+  </div>
+
+  <div id="constellationLayer"></div>
+
+  <canvas id="audioWaveform" width="200" height="30"></canvas>
+
+  <div id="moodChart"></div>
+
+  <div id="silenceMsg"></div>
+
+  <div id="seasonSelector">
+    <button class="season-btn active" data-season="spring">春</button>
+    <button class="season-btn" data-season="summer">夏</button>
+    <button class="season-btn" data-season="autumn">秋</button>
+    <button class="season-btn" data-season="winter">冬</button>
+  </div>
+
+  <div id="presets">
+    <button class="preset-btn" data-preset="springRain">春雨夜</button>
+    <button class="preset-btn" data-preset="summerNight">夏夜蝉</button>
+    <button class="preset-btn" data-preset="autumnWind">秋风起</button>
+  </div>
+
+  <div id="weatherWidget">
+    <div class="weather-icon" id="weatherIcon"></div>
+    <div class="weather-label" id="weatherLabel"></div>
+  </div>
+
+  <div id="mixer">
+    <div class="mixer-track">
+      <span class="icon" id="iconRain">&#127782;</span>
+      <input type="range" id="volRain" min="0" max="100" value="0">
+      <span class="label">雨</span>
+    </div>
+    <div class="mixer-track">
+      <span class="icon" id="iconWind">&#127788;</span>
+      <input type="range" id="volWind" min="0" max="100" value="0">
+      <span class="label">风</span>
+    </div>
+    <div class="mixer-track">
+      <img class="icon" id="iconCrickets" src="蝉图标.png" alt="蝉" style="width:22px;height:22px;object-fit:contain;">
+      <input type="range" id="volCrickets" min="0" max="100" value="0">
+      <span class="label">蝉</span>
+    </div>
+    <div class="mixer-track">
+      <span class="icon" id="iconNight">&#9790;</span>
+      <input type="range" id="volNight" min="0" max="100" value="0">
+      <span class="label">夜</span>
+    </div>
+  </div>
+</div>
+
+<canvas id="dissolveOverlay"></canvas>
+
+<!-- BREATHING GUIDE OVERLAY -->
+<div id="breathGuide">
+  <button class="close-guide" id="closeBreathGuide">关闭</button>
+  <div class="guide-text" id="guideText">吸气…</div>
+  <div class="guide-circle" id="guideCircle"></div>
+  <div class="guide-text-small" id="guideSubtext"></div>
+  <div id="breathPatternSelector">
+    <button class="breath-pattern-btn active" data-pattern="478">4-7-8 放松</button>
+    <button class="breath-pattern-btn" data-pattern="box">方块呼吸 4-4-4-4</button>
+    <button class="breath-pattern-btn" data-pattern="free">自由节奏</button>
+  </div>
+</div>
+
+<!-- TIME CAPSULE MODAL -->
+<div id="timeCapsuleModal">
+  <button class="close-capsule" id="closeCapsule">关闭</button>
+  <div class="capsule-content">
+    <h3>给未来的自己写一句话</h3>
+    <textarea id="capsuleMessage" placeholder="此刻想对未来的自己说什么…" rows="3"></textarea>
+    <div class="capsule-time">
+      解锁时间：
+      <select id="capsuleDuration">
+        <option value="60000">1 分钟后</option>
+        <option value="300000">5 分钟后</option>
+        <option value="3600000">1 小时后</option>
+        <option value="86400000">明天</option>
+        <option value="604800000">一周后</option>
+      </select>
+    </div>
+    <button class="capsule-btn" id="sealCapsule">封存</button>
+  </div>
+</div>
+
+<!-- SAVE TOAST -->
+<div id="saveToast">已保存星空快照</div>
+
+<!-- ZEN SAVE TOAST -->
+<div id="zenSaveToast">禅意画稿已保存</div>
+
+<!-- MEMORY JAR MODAL -->
+<div id="memoryJarModal">
+  <button class="close-jar" id="closeJar">关闭</button>
+  <div class="jar-content">
+    <h3>记忆罐</h3>
+    <div class="jar-count" id="jarCount">你收集了 0 颗记忆碎片</div>
+  </div>
+</div>
+
+<!-- STAR SANDBOX OVERLAY -->
+<div id="starSandbox">
+  <canvas id="sandboxCanvas"></canvas>
+
+  <div id="sandboxTools">
+    <button class="tool-btn active" data-tool="star">&#9733; 恒星</button>
+    <button class="tool-btn" data-tool="planet">&#9673; 行星</button>
+    <button class="tool-btn" data-tool="nebula">&#9678; 星云</button>
+    <button class="tool-btn" data-tool="meteor">&#10052; 流星</button>
+    <button class="tool-btn" data-tool="connect">&#9881; 连线</button>
+    <button class="tool-btn" data-tool="erase">&#9851; 擦除</button>
+  </div>
+
+  <div id="sbPropertyPanel">
+    <div class="sb-prop-title">属性</div>
+    <div class="sb-prop-row">
+      <label class="sb-prop-label">亮度</label>
+      <input type="range" id="sbBrightness" min="0" max="100" value="70" class="sb-prop-slider">
+    </div>
+    <div class="sb-prop-row">
+      <label class="sb-prop-label">大小</label>
+      <input type="range" id="sbSize" min="3" max="50" value="10" class="sb-prop-slider">
+    </div>
+    <div class="sb-prop-row">
+      <label class="sb-prop-label">颜色</label>
+      <input type="color" id="sbColor" value="#c8aa78" class="sb-prop-color">
+    </div>
+  </div>
+
+  <div id="sbBottomBar">
+    <span class="sb-hint" id="sbHint">按 1-4 选择天体类型，点击放置，N触发超新星</span>
+    <button class="sb-action-btn sb-supernova-btn" id="sbSupernova">&#10024; 超新星</button>
+    <button class="sb-action-btn" id="sbViewResult">&#9654; 查看结果</button>
+    <button class="sb-action-btn" id="sbExport">&#128229; 导出</button>
+    <button class="sb-action-btn" id="sbClear">&#9851; 清空</button>
+  </div>
+
+  <div id="sbResultView">
+    <div class="sb-result-card">
+      <button class="sb-result-close" id="sbResultClose">&times;</button>
+      <div class="sb-result-canvas-wrap">
+        <canvas id="sbResultCanvas" width="760" height="760"></canvas>
+      </div>
+      <div class="sb-result-body">
+        <div class="sb-result-title">你的星空沙盘</div>
+        <div class="sb-result-stats" id="sbResultStats"></div>
+        <div class="sb-result-divider"></div>
+        <div class="sb-result-description" id="sbResultDescription"></div>
+        <div id="sbPsychContainer"></div>
+        <div class="sb-healing" id="sbHealingContainer"></div>
+      </div>
+      <div class="sb-result-actions">
+        <button class="sb-action-btn" id="sbResultExport">&#128229; 导出卡片</button>
+        <button class="sb-action-btn" id="sbResultBack">&#8617; 返回编辑</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button id="sbReturnBtn" style="display:none">&#8592; 返回</button>
+
+<div id="sbSaveToast">星空卡片已导出</div>
+
+<script>
+(function() {
+  'use strict';
+
+  var PARTICLE_COUNT = 300;
+  var MOOD_COLORS = {
+    tired:   ['#8a8078', '#6a6560', '#a09890'],
+    anxious: ['#b89098', '#a08088', '#c8a0a8'],
+    sad:     ['#7080b0', '#6070a0', '#8890b8'],
+    lost:    ['#9090a0', '#808090', '#a0a0b0'],
+    calm:    ['#90b8a0', '#80a890', '#a0c8b0'],
+    numb:    ['#606068', '#505058', '#707078'],
+    angry:   ['#b87878', '#a86868', '#c88888'],
+    hopeful: ['#c8aa78', '#d8b888', '#b89868']
+  };
+
+  var PENTATONIC = [
+    130.81, 146.83, 164.81, 196.00, 220.00,
+    261.63, 293.66, 329.63, 392.00, 440.00,
+    523.25, 587.33, 659.25, 783.99, 880.00
+  ];
+
+  var LANDING_PHRASES = [
+    {id: 1, text: "在这里，允许你'什么都不做'。"},
+    {id: 2, text: "你不需要变好，你只需要在这里待一会儿。"},
+    {id: 3, text: "所有App都在让你'变得更好'，只有这里让你'不用变'。"},
+    {id: 4, text: "不分析你为什么不开心，不教你如何变快乐，只是安静地接住你的'累''空''烦'。"},
+    {id: 5, text: "你随手画的一条线，会变成一片星云里的一颗星。"},
+    {id: 6, text: "累了就停一停，世界上没有非走不可的路。"},
+    {id: 7, text: "有时候发呆不是在浪费时间，是在陪自己。"},
+    {id: 8, text: "不必对'放松'感到内疚，那不是偷懒，是修复。"},
+    {id: 9, text: "感到焦虑的时候，深呼吸一下，你还是安全的。"}
+  ];
+
+  var currentScene = 'landing';
+  var selectedMoods = [];
+  var emotionHistory = [];
+  var isBreathPressing = false;
+  var breathPhase = 0;
+  var mouseX = 0, mouseY = 0;
+  var mouseDown = false;
+  var dissolveParticles = [];
+  var dissolving = false;
+  var spaceStartTime = null;
+  var currentSeason = 'spring';
+  var zenMode = false;
+  var zenDrawing = false;
+  var zenPoints = [];
+  var melodyOn = false;
+  var fragmentWords = [];
+  var ripples = [];
+  var breathGuideActive = false;
+  var breathGuideTimer = null;
+  var breathPattern = '478';
+  var sphereX = 0, sphereY = 0;
+  var sphereDragging = false;
+  var sphereDragOffX = 0, sphereDragOffY = 0;
+
+  var SEASONS = {
+    spring: {
+      colors: ['#90b8a0', '#80a890', '#a0c8b0', '#c8aa78', '#90a890'],
+      bgCenter: 'rgba(15, 22, 18, 1)', bgEdge: 'rgba(6, 6, 11, 1)',
+      particleVx: 0.1, particleVy: -0.05,
+      weatherIcon: '', weatherLabel: '心绪如春'
+    },
+    summer: {
+      colors: ['#c8aa78', '#d8b888', '#b89868', '#e0c898', '#c8a070'],
+      bgCenter: 'rgba(22, 18, 12, 1)', bgEdge: 'rgba(6, 6, 11, 1)',
+      particleVx: 0.05, particleVy: -0.1,
+      weatherIcon: '', weatherLabel: '静谧夏夜'
+    },
+    autumn: {
+      colors: ['#c8a070', '#b08060', '#a87050', '#d8a878', '#c09068'],
+      bgCenter: 'rgba(22, 16, 12, 1)', bgEdge: 'rgba(6, 6, 11, 1)',
+      particleVx: -0.1, particleVy: 0.1,
+      weatherIcon: '🍂', weatherLabel: '秋风微凉'
+    },
+    winter: {
+      colors: ['#88a0b8', '#7090a8', '#90a8b8', '#a0b8c8', '#8098a8'],
+      bgCenter: 'rgba(12, 14, 20, 1)', bgEdge: 'rgba(6, 6, 11, 1)',
+      particleVx: 0.02, particleVy: 0.15,
+      weatherIcon: '❄', weatherLabel: '冬雪无声'
+    }
+  };
+
+  var AUDIO_PRESETS = {
+    springRain: { rain: 65, wind: 25, crickets: 0, night: 0 },
+    summerNight: { rain: 0, wind: 5, crickets: 70, night: 40 },
+    autumnWind: { rain: 0, wind: 75, crickets: 0, night: 0 }
+  };
+
+  var cv = document.getElementById('scene');
+  var ctx = cv.getContext('2d');
+  var W = 0, H = 0, dpr = 1;
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    cv.width = W * dpr; cv.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    var zenCv = document.getElementById('zenGarden');
+    zenCv.width = W * dpr; zenCv.height = H * dpr;
+    zenCv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+    /* Center sphere if not yet positioned */
+    if (W > 0 && H > 0 && sphereX === 0 && sphereY === 0) {
+      sphereX = W / 2; sphereY = H / 2;
+      updateSpherePosition();
+    }
+  }
+  window.addEventListener('resize', resize);
+  /* Defer first resize to ensure DOM is ready */
+  requestAnimationFrame(function() { resize(); });
+
+  /* ===== LANDING ANIMATION ===== */
+  var FLY_WORDS = ['难过','焦虑','疲惫','迷茫','孤独','空虚','无力','委屈','压抑','低落'];
+  var landingClicked = false;
+  var landingParticleCtx = null;
+  var landingParticlesArr = [];
+  var landingParticleRAF = null;
+  var flyWordLoopTimer = null;
+
+  /* Setup landing particle canvas — constellation cluster effect */
+  (function() {
+    var canvas = document.getElementById('landingParticles');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    canvas.style.position = 'absolute';
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    landingParticleCtx = canvas.getContext('2d');
+
+    var LINE_DIST = 85;
+    var COLORS = ['#ffffff', '#f5e6c8', '#d4c5a9', '#c8aa78', '#b8d4e3', '#a0c4d4', '#e8d5b7', '#c8d8e8', '#f0e0c0', '#e0d8d0'];
+
+    /* Create particles: some in clusters, some scattered */
+    var clusterCenters = [];
+    var numClusters = 4 + Math.floor(Math.random() * 3);
+    for (var c = 0; c < numClusters; c++) {
+      clusterCenters.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        spread: 60 + Math.random() * 100
+      });
+    }
+
+    /* Cluster particles */
+    for (var i = 0; i < 250; i++) {
+      var cluster = clusterCenters[Math.floor(Math.random() * clusterCenters.length)];
+      var angle = Math.random() * Math.PI * 2;
+      var r = Math.random() * cluster.spread;
+      landingParticlesArr.push({
+        x: cluster.x + Math.cos(angle) * r,
+        y: cluster.y + Math.sin(angle) * r,
+        size: Math.random() * 2.5 + 0.5,
+        opacity: Math.random() * 0.25 + 0.05,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        phase: Math.random() * Math.PI * 2,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)]
+      });
+    }
+
+    /* Scattered particles */
+    for (var i = 0; i < 150; i++) {
+      landingParticlesArr.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: Math.random() * 1.8 + 0.3,
+        opacity: Math.random() * 0.15 + 0.03,
+        vx: (Math.random() - 0.5) * 0.4,
+        vy: (Math.random() - 0.5) * 0.4,
+        phase: Math.random() * Math.PI * 2,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)]
+      });
+    }
+
+    function animateLandingParticles() {
+      if (!landingParticleCtx) return;
+      landingParticleCtx.clearRect(0, 0, canvas.width, canvas.height);
+
+      var now = Date.now();
+
+      /* Draw connection lines first */
+      for (var i = 0; i < landingParticlesArr.length; i++) {
+        var a = landingParticlesArr[i];
+        a.x += a.vx;
+        a.y += a.vy;
+
+        /* Wrap around edges */
+        if (a.x < 0) a.x = canvas.width;
+        if (a.x > canvas.width) a.x = 0;
+        if (a.y < 0) a.y = canvas.height;
+        if (a.y > canvas.height) a.y = 0;
+
+        for (var j = i + 1; j < landingParticlesArr.length; j++) {
+          var b = landingParticlesArr[j];
+          var ddx = a.x - b.x, ddy = a.y - b.y;
+          var sqDist = ddx * ddx + ddy * ddy;
+          if (sqDist < LINE_DIST * LINE_DIST) {
+            var d = Math.sqrt(sqDist);
+            var lineAlpha = (1 - d / LINE_DIST) * 0.08;
+            landingParticleCtx.globalAlpha = lineAlpha;
+            landingParticleCtx.strokeStyle = a.color;
+            landingParticleCtx.lineWidth = 0.6;
+            landingParticleCtx.beginPath();
+            landingParticleCtx.moveTo(a.x, a.y);
+            landingParticleCtx.lineTo(b.x, b.y);
+            landingParticleCtx.stroke();
+          }
+        }
+      }
+
+      /* Draw particles with glow */
+      for (var i = 0; i < landingParticlesArr.length; i++) {
+        var p = landingParticlesArr[i];
+        var alpha = p.opacity * (0.6 + 0.4 * Math.sin(p.phase + now * 0.001));
+        landingParticleCtx.globalAlpha = alpha;
+        landingParticleCtx.fillStyle = p.color;
+        if (p.size > 1.5) {
+          landingParticleCtx.shadowColor = p.color;
+          landingParticleCtx.shadowBlur = p.size * 5;
+        }
+        landingParticleCtx.beginPath();
+        landingParticleCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        landingParticleCtx.fill();
+      }
+
+      landingParticleCtx.globalAlpha = 1;
+      landingParticleCtx.shadowBlur = 0;
+      landingParticleRAF = requestAnimationFrame(animateLandingParticles);
+    }
+    animateLandingParticles();
+  })();
+
+  /* Show "轻触屏幕" hint after brief delay — only in initial state */
+  setTimeout(function() {
+    document.getElementById('clickHint').classList.add('visible');
+  }, 1500);
+
+  /* Landing click handler */
+  document.getElementById('landing').addEventListener('click', function(e) {
+    if (landingClicked) return;
+    if (e.target.id === 'enterBtn') return;
+    landingClicked = true;
+    document.getElementById('clickHint').classList.remove('visible');
+    document.getElementById('clickHint').style.display = 'none';
+
+    var titleEl = document.getElementById('landingTitle');
+    var ballEl = document.getElementById('blackBall');
+    var wordLayer = document.getElementById('wordLayer');
+    var landingSub = document.getElementById('landingSub');
+    var enterBtn = document.getElementById('enterBtn');
+
+    /* Step 1: Move title to center (slightly above) */
+    titleEl.style.transition = 'top 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94), color 0.8s ease';
+    titleEl.style.top = '45%';
+    titleEl.style.transform = 'translate(-50%, -50%)';
+
+    /* Step 2: After title moves, show black ball expanding + words flying */
+    setTimeout(function() {
+      /* Title turns white as ball expands */
+      titleEl.classList.add('turn-white');
+
+      /* Black ball grows */
+      var maxDim = Math.max(window.innerWidth, window.innerHeight) * 3;
+      var ballDuration = 2500;
+      var ballStart = Date.now();
+
+      function animateBall() {
+        var elapsed = Date.now() - ballStart;
+        var progress = Math.min(elapsed / ballDuration, 1);
+        var ease = 1 - Math.pow(1 - progress, 3);
+        var size = ease * maxDim;
+        ballEl.style.width = size + 'px';
+        ballEl.style.height = size + 'px';
+
+        if (progress < 1) {
+          requestAnimationFrame(animateBall);
+        }
+      }
+      animateBall();
+
+      /* Start continuous fly word loop */
+      startFlyWordLoop(wordLayer);
+
+      /* Step 3: Show subtitle and button while words keep cycling */
+      setTimeout(function() {
+        var phrase = LANDING_PHRASES[Math.floor(Math.random() * LANDING_PHRASES.length)];
+        landingSub.textContent = phrase.text;
+        landingSub.classList.add('visible');
+        enterBtn.classList.add('visible');
+      }, ballDuration * 0.65);
+
+    }, 1200);
+  });
+
+  function startFlyWordLoop(container) {
+    /* Launch all words with stagger, then repeat */
+    function launchBatch() {
+      for (var i = 0; i < FLY_WORDS.length; i++) {
+        (function(word, idx) {
+          setTimeout(function() {
+            createFlyWord(container, word);
+          }, idx * 100); /* slower stagger: 100ms between each */
+        })(FLY_WORDS[i], i);
+      }
+    }
+
+    /* First batch immediately */
+    launchBatch();
+
+    /* Repeat every 1 second for continuous flow */
+    flyWordLoopTimer = setInterval(launchBatch, 1000);
+  }
+
+  var WORD_COLORS = ['#c47878', '#9a8a6a', '#8a9a8a', '#7a8a9a', '#a08a78', '#8a7a8a', '#9a7a6a', '#6a9a8a'];
+
+  function createFlyWord(container, word) {
+    var el = document.createElement('div');
+    el.className = 'fly-word';
+    el.textContent = word;
+
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+
+    /* Pre-calculate ALL random values once — no jitter */
+    var fontSize = 1.2 + Math.random() * 1.5;
+    var edge = Math.floor(Math.random() * 4);
+    var startX, startY;
+    switch(edge) {
+      case 0: startX = Math.random() * vw; startY = -60; break;
+      case 1: startX = vw + 60; startY = Math.random() * vh; break;
+      case 2: startX = Math.random() * vw; startY = vh + 60; break;
+      case 3: startX = -60; startY = Math.random() * vh; break;
+    }
+    var startScale = 1.5 + Math.random() * 2; /* start big */
+    var duration = 2800 + Math.random() * 1200;
+    var rotation = (Math.random() - 0.5) * 600;
+    var wordColor = WORD_COLORS[Math.floor(Math.random() * WORD_COLORS.length)];
+
+    el.style.fontSize = fontSize + 'rem';
+    el.style.color = wordColor;
+    el.style.textShadow = '0 0 6px ' + wordColor;
+    el.style.left = startX + 'px';
+    el.style.top = startY + 'px';
+    el.style.opacity = '0.4';
+    el.style.transform = 'translate(-50%, -50%) scale(' + startScale + ') rotate(' + rotation * 0 + 'deg)';
+    container.appendChild(el);
+
+    var centerX = vw / 2;
+    var centerY = vh / 2;
+    var start = Date.now();
+
+    function animateWord() {
+      var elapsed = Date.now() - start;
+      var progress = Math.min(elapsed / duration, 1);
+
+      /* Linear: start big, shrink toward center, fade out */
+      var scale = startScale * (1 - progress);
+      var curX = startX + (centerX - startX) * progress;
+      var curY = startY + (centerY - startY) * progress;
+      var curRotation = rotation * progress;
+      var opacity = 0.4 * (1 - progress);
+
+      el.style.opacity = Math.max(opacity, 0);
+      el.style.transform = 'translate(-50%, -50%) scale(' + scale + ') rotate(' + curRotation + 'deg)';
+      el.style.left = curX + 'px';
+      el.style.top = curY + 'px';
+
+      if (progress < 1) {
+        requestAnimationFrame(animateWord);
+      } else {
+        if (el.parentNode) el.parentNode.removeChild(el);
+      }
+    }
+    animateWord();
+  }
+
+  var particles = [];
+
+  function createParticle(opts) {
+    var colors = opts.colors || SEASONS[currentSeason].colors;
+    return {
+      x: opts.x || Math.random() * W,
+      y: opts.y || Math.random() * H,
+      vx: opts.vx || (Math.random() - 0.5) * SEASONS[currentSeason].particleVx * 2,
+      vy: opts.vy || (Math.random() - 0.5) * SEASONS[currentSeason].particleVy * 2,
+      size: opts.size || (Math.random() * 2 + 0.5),
+      opacity: opts.opacity || (Math.random() * 0.2 + 0.04),
+      baseOpacity: opts.opacity || (Math.random() * 0.2 + 0.04),
+      phase: opts.phase || Math.random() * Math.PI * 2,
+      color: opts.color || colors[Math.floor(Math.random() * colors.length)],
+      life: opts.life || Infinity, decay: opts.decay || 0, maxLife: opts.maxLife || Infinity
+    };
+  }
+
+  for (var i = 0; i < PARTICLE_COUNT; i++) particles.push(createParticle({}));
+
+  function getTimeDilation() {
+    if (!spaceStartTime) return 1;
+    var mins = (Date.now() - spaceStartTime) / 60000;
+    return Math.max(0.15, 1 - mins * 0.02);
+  }
+
+  function updateParticles(dt) {
+    var dil = getTimeDilation();
+    var effDt = dt * dil;
+    var cx = sphereX || W / 2, cy = sphereY || H / 2;
+    var attractForce = isBreathPressing ? 0.00008 : 0.00002;
+    var scatterForce = isBreathPressing ? 0.0003 : 0;
+
+    for (var i = 0; i < particles.length; i++) {
+      var p = particles[i];
+      p.x += p.vx * dil;
+      p.y += p.vy * dil;
+      p.x += Math.sin(p.phase + effDt * 0.0003) * 0.06;
+      p.y += Math.cos(p.phase + effDt * 0.0004) * 0.04;
+
+      var dx = cx - p.x, dy = cy - p.y;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > 1) {
+        if (isBreathPressing) {
+          p.vx -= (dx / dist) * scatterForce * 200;
+          p.vy -= (dy / dist) * scatterForce * 200;
+        } else {
+          p.vx += (dx / dist) * attractForce * 200;
+          p.vy += (dy / dist) * attractForce * 200;
+        }
+      }
+
+      /* Ripple push */
+      for (var r = 0; r < ripples.length; r++) {
+        var rip = ripples[r];
+        var rdx = p.x - rip.x, rdy = p.y - rip.y;
+        var rdist = Math.sqrt(rdx * rdx + rdy * rdy);
+        if (rdist < rip.radius + 30 && rdist > rip.radius - 30) {
+          p.vx += (rdx / rdist) * 0.15;
+          p.vy += (rdy / rdist) * 0.15;
+        }
+      }
+
+      if (mouseDown) {
+        var mdx = p.x - mouseX, mdy = p.y - mouseY;
+        var mdist = Math.sqrt(mdx * mdx + mdy * mdy);
+        if (mdist < 150 && mdist > 0) {
+          p.vx += (mdx / mdist) * 0.08;
+          p.vy += (mdy / mdist) * 0.08;
+        }
+      }
+
+      p.vx *= 0.998; p.vy *= 0.998;
+      var m = 50;
+      if (p.x < -m) p.x = W + m;
+      if (p.x > W + m) p.x = -m;
+      if (p.y < -m) p.y = H + m;
+      if (p.y > H + m) p.y = -m;
+
+      p.opacity = p.baseOpacity * (0.6 + 0.4 * Math.sin(p.phase + effDt * 0.001));
+
+      if (p.life !== Infinity) {
+        p.life -= effDt;
+        if (p.life <= 0) { particles.splice(i, 1); i--; continue; }
+        if (p.life < p.maxLife * 0.3) p.opacity *= (p.life / (p.maxLife * 0.3));
+      }
+    }
+
+    /* Update ripples */
+    for (var r = 0; r < ripples.length; r++) {
+      ripples[r].radius += 3;
+      ripples[r].life -= dt;
+    }
+    ripples = ripples.filter(function(r) { return r.life > 0; });
+  }
+
+  function drawParticles() {
+    var lineDist = 80;
+    for (var i = 0; i < particles.length; i++) {
+      var a = particles[i];
+      if (a.opacity < 0.01) continue;
+      for (var j = i + 1; j < particles.length; j++) {
+        var b = particles[j];
+        if (b.opacity < 0.01) continue;
+        var dx = a.x - b.x, dy = a.y - b.y;
+        var dist = dx * dx + dy * dy;
+        if (dist < lineDist * lineDist) {
+          var alpha = (1 - Math.sqrt(dist) / lineDist) * 0.06 * Math.min(a.opacity, b.opacity) * 5;
+          ctx.globalAlpha = alpha;
+          ctx.strokeStyle = a.color;
+          ctx.lineWidth = 0.5;
+          ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+        }
+      }
+    }
+    for (var i = 0; i < particles.length; i++) {
+      var p = particles[i];
+      if (p.opacity < 0.005) continue;
+      ctx.globalAlpha = p.opacity;
+      ctx.fillStyle = p.color;
+      if (p.size > 1.5) { ctx.shadowColor = p.color; ctx.shadowBlur = p.size * 4; }
+      else { ctx.shadowBlur = 0; }
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+  }
+
+  function drawRipples() {
+    for (var i = 0; i < ripples.length; i++) {
+      var r = ripples[i];
+      var alpha = (r.life / 1500) * 0.3;
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = 'rgba(200, 170, 120, 0.4)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /* ===== AUDIO ===== */
+  var audioCtx = null;
+  var audioNodes = {};
+  var audioInitialized = false;
+  var melodyNodes = [];
+  var melodyInterval = null;
+  var melodyGainNode = null;
+  var loadedAudioElements = {};
+
+  function initAudioElement(url) {
+    if (loadedAudioElements[url]) return loadedAudioElements[url];
+    var audio = document.createElement('audio');
+    audio.src = url;
+    audio.loop = true;
+    audio.preload = 'auto';
+    audio.volume = 0;
+    audio.play().catch(function(e) { console.warn('Audio play failed:', url, e); });
+    loadedAudioElements[url] = audio;
+    return audio;
+  }
+
+  function initAudio() {
+    if (audioInitialized) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    audioInitialized = true;
+
+    var bufferSize = 2 * audioCtx.sampleRate;
+    var noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    var output = noiseBuffer.getChannelData(0);
+    for (var i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
+
+    var pinkBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    var pinkData = pinkBuffer.getChannelData(0);
+    var b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+    for (var i = 0; i < bufferSize; i++) {
+      var white = Math.random() * 2 - 1;
+      b0 = 0.99886*b0 + white*0.0555179; b1 = 0.99332*b1 + white*0.0750759;
+      b2 = 0.96900*b2 + white*0.1538520; b3 = 0.86650*b3 + white*0.3104856;
+      b4 = 0.55000*b4 + white*0.5329522; b5 = -0.7616*b5 - white*0.0168980;
+      pinkData[i] = (b0+b1+b2+b3+b4+b5+b6+white*0.5362)*0.11;
+      b6 = white*0.115926;
+    }
+
+    /* === 雨声: HTML5 Audio 播放真实雨声音效 === */
+    var rainAudio = initAudioElement('温和轻柔雨声白噪音_爱给网_aigei_com.mp3');
+    audioNodes.rain = { el: rainAudio };
+
+    /* === 风声: HTML5 Audio 播放真实风声音效 === */
+    var windAudio = initAudioElement('轻风轻快的(阵风)_爱给网_aigei_com.mp3');
+    audioNodes.wind = { el: windAudio };
+
+    /* === 蝉鸣: HTML5 Audio 播放真实蝉鸣音效 === */
+    var cricketAudio = initAudioElement('蝉鸣.mp3');
+    audioNodes.crickets = { el: cricketAudio };
+
+    /* === 夜色: HTML5 Audio 播放真实夜晚环境音 === */
+    var nightAudio = initAudioElement('【环境音】户外夜晚蟋蟀昆虫声-深夜环境尖细蟋蟀虫群叫声_爱给网_aigei_com.mp3');
+    audioNodes.night = { el: nightAudio };
+  }
+
+  function setVolume(type, value) {
+    if (!audioNodes[type]) return;
+    var node = audioNodes[type];
+    if (node.el) {
+      node.el.volume = value;
+    }
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  function applyPreset(name) {
+    var btn = document.querySelector('[data-preset="' + name + '"]');
+    if (!btn) return;
+
+    /* If already active, turn off all audio */
+    if (btn.classList.contains('active')) {
+      document.querySelectorAll('.preset-btn').forEach(function(b) { b.classList.remove('active'); });
+      ['rain', 'wind', 'crickets', 'night'].forEach(function(type) {
+        setVolume(type, 0);
+        var sliderId = 'vol' + type.charAt(0).toUpperCase() + type.slice(1);
+        var slider = document.getElementById(sliderId);
+        if (slider) slider.value = 0;
+        var iconId = 'icon' + type.charAt(0).toUpperCase() + type.slice(1);
+        var icon = document.getElementById(iconId);
+        if (icon) icon.classList.remove('active');
+      });
+      return;
+    }
+
+    /* Otherwise activate this preset */
+    var preset = AUDIO_PRESETS[name];
+    if (!preset) return;
+    document.querySelectorAll('.preset-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    ['rain', 'wind', 'crickets', 'night'].forEach(function(type) {
+      var v = (preset[type] || 0) / 100;
+      setVolume(type, v);
+      var sliderId = 'vol' + type.charAt(0).toUpperCase() + type.slice(1);
+      var slider = document.getElementById(sliderId);
+      if (slider) slider.value = preset[type] || 0;
+      var iconId = 'icon' + type.charAt(0).toUpperCase() + type.slice(1);
+      var icon = document.getElementById(iconId);
+      if (icon) icon.classList.toggle('active', v > 0.01);
+    });
+  }
+
+  function startMelody() {
+    if (!audioCtx) initAudio();
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    if (melodyOn) return; /* already playing */
+    melodyOn = true;
+
+    melodyGainNode = audioCtx.createGain();
+    melodyGainNode.gain.value = 0.06;
+    melodyGainNode.connect(audioCtx.destination);
+
+    var melodyGain = melodyGainNode;
+
+    function playNote() {
+      if (!melodyOn) return;
+      var freq = PENTATONIC[Math.floor(Math.random() * PENTATONIC.length)];
+      var osc = audioCtx.createOscillator();
+      var noteGain = audioCtx.createGain();
+      var filter = audioCtx.createBiquadFilter();
+      osc.type = 'sine'; osc.frequency.value = freq;
+      filter.type = 'lowpass'; filter.frequency.value = 2000;
+      var now = audioCtx.currentTime;
+      noteGain.gain.setValueAtTime(0, now);
+      noteGain.gain.linearRampToValueAtTime(0.15, now + 0.3);
+      noteGain.gain.exponentialRampToValueAtTime(0.001, now + 3);
+      osc.connect(filter); filter.connect(noteGain); noteGain.connect(melodyGain);
+      osc.start(now); osc.stop(now + 3);
+    }
+
+    var chord = [PENTATONIC[4], PENTATONIC[7], PENTATONIC[9]];
+    chord.forEach(function(freq) {
+      var osc = audioCtx.createOscillator();
+      var noteGain = audioCtx.createGain();
+      osc.type = 'sine'; osc.frequency.value = freq;
+      noteGain.gain.value = 0.04;
+      osc.connect(noteGain); noteGain.connect(melodyGain);
+      osc.start(); melodyNodes.push({ osc: osc, gain: noteGain });
+    });
+    melodyInterval = setInterval(playNote, 2000 + Math.random() * 3000);
+  }
+
+  function stopMelody() {
+    melodyOn = false;
+    if (melodyInterval) { clearInterval(melodyInterval); melodyInterval = null; }
+    melodyNodes.forEach(function(n) { try { n.osc.stop(); } catch(e) {} });
+    melodyNodes = [];
+    if (melodyGainNode) {
+      melodyGainNode.disconnect();
+      melodyGainNode = null;
+    }
+  }
+
+  /* ===== SCENE ===== */
+  function switchScene(fromId, toId) {
+    document.getElementById(fromId).classList.remove('active');
+    setTimeout(function() {
+      document.getElementById(toId).classList.add('active');
+      currentScene = toId === 'emotionInput' ? 'emotion' : toId === 'mainSpace' ? 'main' : 'landing';
+      if (toId === 'mainSpace' && !spaceStartTime) {
+        spaceStartTime = Date.now();
+        updateWeather();
+      }
+      if (toId === 'mainSpace') {
+        updateTimeCounter();
+      }
+    }, 600);
+  }
+
+  /* ===== TIME COUNTER ===== */
+  function updateTimeCounter() {
+    if (!spaceStartTime) return;
+    var elapsed = Math.floor((Date.now() - spaceStartTime) / 1000);
+    var min = Math.floor(elapsed / 60);
+    var sec = elapsed % 60;
+    var el = document.getElementById('timeValue');
+    if (el) el.textContent = min + ':' + (sec < 10 ? '0' : '') + sec;
+    if (currentScene === 'main') requestAnimationFrame(updateTimeCounter);
+  }
+
+  /* ===== EMOTIONAL WEATHER ===== */
+  var moodWeatherMap = {
+    tired: { icon: '🌫', label: '薄雾' },
+    anxious: { icon: '⛈', label: '雷暴' },
+    sad: { icon: '', label: '细雨' },
+    lost: { icon: '🌫', label: '迷雾' },
+    calm: { icon: '☀', label: '晴朗' },
+    numb: { icon: '🌨', label: '灰雪' },
+    angry: { icon: '⚡', label: '闪电' },
+    hopeful: { icon: '🌅', label: '晨曦' }
+  };
+
+  function updateWeather() {
+    if (emotionHistory.length === 0) {
+      var s = SEASONS[currentSeason];
+      document.getElementById('weatherIcon').textContent = s.weatherIcon;
+      document.getElementById('weatherLabel').textContent = s.weatherLabel;
+      return;
+    }
+    var last = emotionHistory[emotionHistory.length - 1];
+    var primaryMood = last.mood.split(',')[0];
+    var w = moodWeatherMap[primaryMood] || moodWeatherMap.calm;
+    document.getElementById('weatherIcon').textContent = w.icon;
+    document.getElementById('weatherLabel').textContent = w.label;
+  }
+
+  /* ===== EMOTION INPUT ===== */
+  var moodBtns = document.querySelectorAll('.mood-btn');
+  moodBtns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var mood = btn.dataset.mood;
+      var idx = selectedMoods.indexOf(mood);
+      if (idx === -1) {
+        selectedMoods.push(mood);
+        btn.classList.add('selected');
+      } else {
+        selectedMoods.splice(idx, 1);
+        btn.classList.remove('selected');
+      }
+      updateSpectrum();
+    });
+  });
+
+  document.getElementById('emotionText').addEventListener('input', updateSpectrum);
+
+  function updateSpectrum() {
+    var bar = document.getElementById('spectrumBar');
+    bar.classList.toggle('visible', document.getElementById('emotionText').value.length > 0);
+  }
+
+  /* Typing particle effect */
+  document.getElementById('emotionText').addEventListener('keydown', function(e) {
+    if (currentScene !== 'emotion') return;
+    var colors = selectedMoods.length > 0 ? MOOD_COLORS[selectedMoods[selectedMoods.length - 1]] || MOOD_COLORS.calm : ['#c8a070'];
+    var color = colors[Math.floor(Math.random() * colors.length)];
+    var el = document.createElement('div');
+    el.className = 'typing-particle';
+    el.style.background = color;
+    el.style.boxShadow = '0 0 6px ' + color;
+    /* Position near cursor */
+    var rect = this.getBoundingClientRect();
+    var card = document.getElementById('emotionCard');
+    var cardRect = card.getBoundingClientRect();
+    el.style.left = (rect.left - cardRect.left + Math.random() * 20) + 'px';
+    el.style.top = (rect.top - cardRect.top + Math.random() * 10) + 'px';
+    card.appendChild(el);
+    setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 600);
+  });
+
+  document.getElementById('submitEmotion').addEventListener('click', function() {
+    var text = document.getElementById('emotionText').value.trim();
+    if (!text && selectedMoods.length === 0) return;
+
+    var entry = { text: text || '…', mood: selectedMoods.length > 0 ? selectedMoods.join(',') : 'numb', time: Date.now() };
+    emotionHistory.push(entry);
+
+    triggerDissolve(entry);
+    addFragment(text.substring(0, 12));
+    updateWeather();
+    updateEmotionCounter();
+    addConstellationStar(entry);
+
+    setTimeout(function() {
+      switchScene('emotionInput', 'mainSpace');
+      initAudio();
+      updateHistoryUI();
+    }, 2000);
+  });
+
+  document.getElementById('skipBtn').addEventListener('click', function() {
+    switchScene('emotionInput', 'mainSpace');
+    initAudio();
+    updateWeather();
+  });
+
+  /* ===== DISSOLVE ===== */
+  function triggerDissolve(entry) {
+    var overlay = document.getElementById('dissolveOverlay');
+    var octx = overlay.getContext('2d');
+    overlay.width = W * dpr; overlay.height = H * dpr;
+    octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    overlay.classList.add('active');
+
+    var colors = MOOD_COLORS[entry.mood] || MOOD_COLORS.calm;
+    var dp = [];
+    for (var i = 0; i < 120; i++) {
+      dp.push({
+        x: W/2 + (Math.random()-0.5)*200, y: H/2 + (Math.random()-0.5)*60,
+        vx: (Math.random()-0.5)*3, vy: (Math.random()-0.5)*2-1,
+        size: Math.random()*2.5+0.5, opacity: Math.random()*0.6+0.3,
+        color: colors[Math.floor(Math.random()*colors.length)],
+        life: 1, decay: 0.005+Math.random()*0.008, maxLife: 1
+      });
+    }
+    dissolving = true;
+    var dissolveStart = Date.now();
+
+    function animateDissolve() {
+      if (!dissolving) return;
+      var elapsed = Date.now() - dissolveStart;
+      if (elapsed > 2000) {
+        dissolving = false; overlay.classList.remove('active');
+        dp.forEach(function(p) {
+          particles.push(createParticle({
+            x: p.x, y: p.y, size: p.size*0.8, opacity: p.opacity*0.5,
+            color: p.color, life: 15000, maxLife: 15000
+          }));
+        });
+        return;
+      }
+      octx.clearRect(0, 0, W, H);
+      for (var i = 0; i < dp.length; i++) {
+        var p = dp[i];
+        p.x += p.vx; p.y += p.vy; p.vy -= 0.02;
+        p.opacity -= p.decay; p.vx *= 0.99;
+        if (p.opacity <= 0) continue;
+        octx.globalAlpha = Math.max(0, p.opacity);
+        octx.fillStyle = p.color;
+        octx.shadowColor = p.color; octx.shadowBlur = p.size*3;
+        octx.beginPath(); octx.arc(p.x, p.y, p.size, 0, Math.PI*2); octx.fill();
+      }
+      octx.shadowBlur = 0; octx.globalAlpha = 1;
+      requestAnimationFrame(animateDissolve);
+    }
+    animateDissolve();
+  }
+
+  /* ===== FLOATING FRAGMENTS ===== */
+  var anonymousWords = ['放空','呼吸','安静','放下','此刻','留白','微光','沉默','漂浮','消散','温柔','停顿','空白','回响','余韵'];
+
+  function addFragment(word) {
+    var container = document.getElementById('fragments');
+    if (!word) word = anonymousWords[Math.floor(Math.random()*anonymousWords.length)];
+    var el = document.createElement('div');
+    el.className = 'fragment'; el.textContent = word;
+    el.style.left = (10+Math.random()*80)+'%';
+    el.style.top = (10+Math.random()*80)+'%';
+    el.style.animationDelay = (Math.random()*5)+'s';
+    el.style.animationDuration = (8+Math.random()*8)+'s';
+    container.appendChild(el);
+    if (container.children.length > 15) container.removeChild(container.firstChild);
+    fragmentWords.push(word);
+  }
+  for (var i = 0; i < 6; i++) addFragment();
+
+  /* ===== HISTORY ===== */
+  function updateHistoryUI() {
+    var container = document.getElementById('emotionHistory');
+    container.innerHTML = '';
+    if (emotionHistory.length === 0) {
+      container.innerHTML = '<div class="empty-hint">投递的情绪将化为粒子，融入这片星空…</div>';
+      return;
+    }
+    var recent = emotionHistory.slice(-5);
+    for (var i = 0; i < recent.length; i++) {
+      var item = document.createElement('div');
+      item.className = 'history-item';
+      item.style.animationDelay = (i*0.1)+'s';
+      var moodLabel = { tired:'疲惫', anxious:'焦虑', sad:'低落', lost:'迷茫', calm:'平静', numb:'麻木', angry:'烦躁', hopeful:'微光' };
+      var moods = recent[i].mood.split(',').map(function(m) { return moodLabel[m] || m; }).join(' + ');
+      item.textContent = moods + ' · ' + recent[i].text.substring(0,20) + (recent[i].text.length>20?'…':'');
+      container.appendChild(item);
+    }
+  }
+
+  /* ===== BREATHING SPHERE (draggable) ===== */
+  var breathSphere = document.getElementById('breathSphere');
+
+  function updateSpherePosition() {
+    breathSphere.style.left = sphereX + 'px';
+    breathSphere.style.top = sphereY + 'px';
+    breathSphere.style.transform = 'translate(-50%, -50%)';
+  }
+
+  function startBreathPress(e) {
+    e.preventDefault();
+    isBreathPressing = true;
+    breathSphere.classList.add('pressing');
+    recordInteraction();
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  }
+  function endBreathPress() {
+    isBreathPressing = false;
+    breathSphere.classList.remove('pressing');
+  }
+
+  breathSphere.addEventListener('mousedown', function(e) {
+    startBreathPress(e);
+    sphereDragging = true;
+    sphereDragOffX = e.clientX - sphereX;
+    sphereDragOffY = e.clientY - sphereY;
+  });
+  breathSphere.addEventListener('touchstart', function(e) {
+    startBreathPress(e);
+    sphereDragging = true;
+    sphereDragOffX = e.touches[0].clientX - sphereX;
+    sphereDragOffY = e.touches[0].clientY - sphereY;
+  }, { passive: false });
+
+  window.addEventListener('mousemove', function(e) {
+    if (sphereDragging) {
+      sphereX = e.clientX - sphereDragOffX;
+      sphereY = e.clientY - sphereDragOffY;
+      updateSpherePosition();
+    }
+  });
+  window.addEventListener('touchmove', function(e) {
+    if (sphereDragging && e.touches.length) {
+      sphereX = e.touches[0].clientX - sphereDragOffX;
+      sphereY = e.touches[0].clientY - sphereDragOffY;
+      updateSpherePosition();
+    }
+  }, { passive: true });
+
+  window.addEventListener('mouseup', function(e) {
+    if (isBreathPressing) { endBreathPress(); }
+    if (sphereDragging) { sphereDragging = false; }
+  });
+  window.addEventListener('touchend', function(e) {
+    if (isBreathPressing) { endBreathPress(); }
+    if (sphereDragging) { sphereDragging = false; }
+  });
+
+  /* ===== RIPPLE ON EMPTY SPACE CLICK ===== */
+  var dragStartMouseX = 0, dragStartMouseY = 0;
+  var clickTarget = null;
+
+  document.addEventListener('mousedown', function(e) {
+    dragStartMouseX = e.clientX;
+    dragStartMouseY = e.clientY;
+    clickTarget = e.target;
+  });
+  document.addEventListener('mouseup', function(e) {
+    if (currentScene !== 'main') return;
+    if (Math.abs(e.clientX - dragStartMouseX) < 5 && Math.abs(e.clientY - dragStartMouseY) < 5) {
+      /* Only ripple if clicking on empty space (not on any button, input, sphere, etc.) */
+      var tag = clickTarget.tagName.toLowerCase();
+      var isInteractive = tag === 'button' || tag === 'input' || tag === 'textarea' || tag === 'canvas';
+      var hasClickHandler = clickTarget.closest('#breathSphere') || clickTarget.closest('#toolbar') || clickTarget.closest('#mixer') || clickTarget.closest('#emotionHistory') || clickTarget.closest('#seasonSelector') || clickTarget.closest('#presets') || clickTarget.closest('#weatherWidget') || clickTarget.closest('#timeCounter') || clickTarget.closest('#melodyToggle') || clickTarget.closest('#returnBtn') || clickTarget.closest('#breathGuide') || clickTarget.closest('#fragments') || clickTarget.closest('#emotionCounter') || clickTarget.closest('#timeCapsule') || clickTarget.closest('.shooting-star') || clickTarget.closest('#memoryJar') || clickTarget.closest('#moodChart') || clickTarget.closest('#audioWaveform');
+      if (!isInteractive && !hasClickHandler) {
+        createRipple(e.clientX, e.clientY);
+      }
+    }
+  });
+  document.addEventListener('touchstart', function(e) {
+    dragStartMouseX = e.touches[0].clientX;
+    dragStartMouseY = e.touches[0].clientY;
+    clickTarget = e.touches[0].target;
+  }, { passive: true });
+  document.addEventListener('touchend', function(e) {
+    if (currentScene !== 'main') return;
+    if (e.changedTouches && e.changedTouches.length) {
+      var t = e.changedTouches[0];
+      if (Math.abs(t.clientX - dragStartMouseX) < 10 && Math.abs(t.clientY - dragStartMouseY) < 10) {
+        var tag = clickTarget.tagName.toLowerCase();
+        var isInteractive = tag === 'button' || tag === 'input' || tag === 'textarea' || tag === 'canvas';
+        var hasClickHandler = clickTarget.closest('#breathSphere') || clickTarget.closest('#toolbar') || clickTarget.closest('#mixer') || clickTarget.closest('#emotionHistory') || clickTarget.closest('#seasonSelector') || clickTarget.closest('#presets') || clickTarget.closest('#weatherWidget') || clickTarget.closest('#timeCounter') || clickTarget.closest('#melodyToggle') || clickTarget.closest('#returnBtn') || clickTarget.closest('#breathGuide') || clickTarget.closest('#fragments') || clickTarget.closest('#emotionCounter') || clickTarget.closest('#timeCapsule') || clickTarget.closest('.shooting-star') || clickTarget.closest('#memoryJar') || clickTarget.closest('#moodChart') || clickTarget.closest('#audioWaveform');
+        if (!isInteractive && !hasClickHandler) {
+          createRipple(t.clientX, t.clientY);
+        }
+      }
+    }
+  });
+
+  /* ===== MOUSE TRACKING FOR PARTICLE REPULSION ===== */
+  document.addEventListener('mousemove', function(e) { mouseX = e.clientX; mouseY = e.clientY; });
+  document.addEventListener('touchmove', function(e) {
+    if (e.touches.length) { mouseX = e.touches[0].clientX; mouseY = e.touches[0].clientY; }
+  }, { passive: true });
+
+  function createRipple(x, y) {
+    ripples.push({ x: x, y: y, radius: 0, life: 1500 });
+
+    /* Also create DOM ripple element */
+    var el = document.createElement('div');
+    el.className = 'ripple';
+    var size = 200;
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.left = (x - size/2) + 'px';
+    el.style.top = (y - size/2) + 'px';
+    document.getElementById('mainSpace').appendChild(el);
+    setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 1500);
+  }
+
+  /* ===== AUDIO MIXER ===== */
+  ['Rain', 'Wind', 'Crickets', 'Night'].forEach(function(type) {
+    var slider = document.getElementById('vol' + type);
+    var icon = document.getElementById('icon' + type);
+    if (slider) {
+      slider.addEventListener('input', function() {
+        var v = this.value / 100;
+        setVolume(type.toLowerCase(), v);
+        if (icon) icon.classList.toggle('active', v > 0);
+        document.querySelectorAll('.preset-btn').forEach(function(b) { b.classList.remove('active'); });
+      });
+    }
+  });
+
+  /* ===== AUDIO PRESETS ===== */
+  document.querySelectorAll('.preset-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      applyPreset(btn.dataset.preset);
+    });
+  });
+
+  /* ===== NAV ===== */
+  document.getElementById('enterBtn').addEventListener('click', function() {
+    switchScene('landing', 'emotionInput');
+  });
+
+  document.getElementById('returnBtn').addEventListener('click', function() {
+    document.getElementById('emotionText').value = '';
+    moodBtns.forEach(function(b) { b.classList.remove('selected'); });
+    selectedMoods = []; updateSpectrum();
+    switchScene('mainSpace', 'emotionInput');
+  });
+
+  /* ===== HINT FADE ===== */
+  var hintEl = document.getElementById('hint');
+  var hintHidden = false;
+  function hideHint() {
+    if (!hintHidden) { hintEl.classList.add('hidden'); hintHidden = true; }
+  }
+  breathSphere.addEventListener('mousedown', hideHint);
+  breathSphere.addEventListener('touchstart', hideHint, { passive: true });
+  document.getElementById('volRain').addEventListener('input', hideHint);
+
+  /* ===== SEASON SELECTOR ===== */
+  var seasonBtns = document.querySelectorAll('.season-btn');
+  seasonBtns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      seasonBtns.forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      currentSeason = btn.dataset.season;
+      var seasonColors = SEASONS[currentSeason].colors;
+      particles.forEach(function(p) {
+        p.color = seasonColors[Math.floor(Math.random() * seasonColors.length)];
+      });
+      updateWeather();
+    });
+  });
+
+  /* ===== BREATHING GUIDE ===== */
+  var BREATH_PATTERNS = {
+    '478': { inhale: 4000, hold: 7000, exhale: 8000, label: '4-7-8' },
+    'box': { inhale: 4000, hold: 4000, exhale: 4000, hold2: 4000, label: '4-4-4-4' },
+    'free': { inhale: 5000, hold: 0, exhale: 5000, label: '自由' }
+  };
+
+  var breathPatternBtns = document.querySelectorAll('.breath-pattern-btn');
+  breathPatternBtns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      breathPatternBtns.forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      breathPattern = btn.dataset.pattern;
+      if (breathGuideActive) {
+        stopBreathGuide();
+        startBreathGuide();
+      }
+    });
+  });
+
+  document.getElementById('btnBreathGuide').addEventListener('click', function() {
+    if (zenMode) closeZenMode();
+    if (breathGuideActive) { stopBreathGuide(); this.classList.remove('active'); }
+    else { startBreathGuide(); this.classList.add('active'); }
+  });
+
+  var breathAudio = null;
+
+  function playBreathSound(type) {
+    if (breathAudio) {
+      breathAudio.pause();
+      breathAudio.src = '';
+    }
+    breathAudio = document.createElement('audio');
+    breathAudio.src = type === 'inhale' ? '深呼吸音效.mp3' : '深呼吸音效2.mp3';
+    breathAudio.volume = 0.8;
+    breathAudio.play().catch(function() {});
+  }
+
+  function stopBreathSound() {
+    if (breathAudio) {
+      breathAudio.pause();
+      breathAudio.src = '';
+      breathAudio = null;
+    }
+  }
+
+  function startBreathGuide() {
+    breathGuideActive = true;
+    document.getElementById('breathGuide').classList.add('active');
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    initAudio();
+    runBreathCycle();
+  }
+
+  function stopBreathGuide() {
+    breathGuideActive = false;
+    document.getElementById('breathGuide').classList.remove('active');
+    if (breathGuideTimer) { clearTimeout(breathGuideTimer); breathGuideTimer = null; }
+    stopBreathSound();
+  }
+
+  function runBreathCycle() {
+    if (!breathGuideActive) return;
+    var pat = BREATH_PATTERNS[breathPattern];
+    var textEl = document.getElementById('guideText');
+    var circleEl = document.getElementById('guideCircle');
+    var subEl = document.getElementById('guideSubtext');
+
+    /* 吸气 */
+    textEl.textContent = '吸气…';
+    circleEl.className = 'guide-circle inhale';
+    subEl.textContent = pat.inhale / 1000 + '秒';
+    playBreathSound('inhale');
+    breathGuideTimer = setTimeout(function() {
+      if (!breathGuideActive) return;
+
+      /* 呼气 */
+      textEl.textContent = '呼气…';
+      circleEl.className = 'guide-circle exhale';
+      subEl.textContent = pat.exhale / 1000 + '秒';
+      playBreathSound('exhale');
+      breathGuideTimer = setTimeout(function() {
+        if (!breathGuideActive) return;
+
+        if (pat.hold2) {
+          textEl.textContent = '呼气…';
+          circleEl.className = 'guide-circle exhale';
+          subEl.textContent = pat.hold2 / 1000 + '秒';
+          playBreathSound('exhale');
+          breathGuideTimer = setTimeout(runBreathCycle, pat.hold2);
+        } else {
+          runBreathCycle();
+        }
+      }, pat.exhale);
+    }, pat.inhale);
+  }
+
+  document.getElementById('closeBreathGuide').addEventListener('click', function() {
+    stopBreathGuide();
+    document.getElementById('btnBreathGuide').classList.remove('active');
+  });
+
+  /* ===== ZEN GARDEN ===== */
+  var zenCv = document.getElementById('zenGarden');
+  var zctx = zenCv.getContext('2d');
+  var zenToolbar = document.getElementById('zenToolbar');
+  var zenStrokes = []; // each stroke: [{x,y}, ...]
+  var zenCurrentStroke = []; // current stroke being drawn
+
+  function openZenToolbar() { zenToolbar.classList.add('active'); }
+  function closeZenToolbar() { zenToolbar.classList.remove('active'); }
+  function closeZenMode() {
+    zenMode = false;
+    zenDrawing = false;
+    zenCurrentStroke = [];
+    document.getElementById('btnZenGarden').classList.remove('active');
+    zenCv.style.pointerEvents = 'none';
+    closeZenToolbar();
+  }
+
+  function redrawZenStrokes() {
+    zctx.clearRect(0, 0, W, H);
+    for (var s = 0; s < zenStrokes.length; s++) {
+      var pts = zenStrokes[s];
+      if (pts.length < 2) continue;
+      zctx.beginPath(); zctx.moveTo(pts[0].x, pts[0].y);
+      for (var p = 1; p < pts.length; p++) {
+        zctx.lineTo(pts[p].x, pts[p].y);
+      }
+      zctx.strokeStyle = 'rgba(200, 170, 120, 0.12)';
+      zctx.lineWidth = 2; zctx.lineCap = 'round';
+      zctx.stroke();
+      /* re-draw the sparkle dots for each point */
+      for (var i = 1; i < pts.length; i++) {
+        for (var d = 0; d < 3; d++) {
+          zctx.beginPath();
+          zctx.arc(pts[i].x+(Math.random()-0.5)*10, pts[i].y+(Math.random()-0.5)*10, Math.random()*1.5+0.5, 0, Math.PI*2);
+          zctx.fillStyle = 'rgba(200, 170, 120, 0.1)'; zctx.fill();
+        }
+      }
+    }
+  }
+
+  function drawZenTrail() {
+    if (zenCurrentStroke.length < 2) return;
+    var last = zenCurrentStroke[zenCurrentStroke.length - 2];
+    var curr = zenCurrentStroke[zenCurrentStroke.length - 1];
+    zctx.beginPath(); zctx.moveTo(last.x, last.y); zctx.lineTo(curr.x, curr.y);
+    zctx.strokeStyle = 'rgba(200, 170, 120, 0.12)'; zctx.lineWidth = 2; zctx.lineCap = 'round'; zctx.stroke();
+    for (var i = 0; i < 3; i++) {
+      zctx.beginPath();
+      zctx.arc(curr.x+(Math.random()-0.5)*10, curr.y+(Math.random()-0.5)*10, Math.random()*1.5+0.5, 0, Math.PI*2);
+      zctx.fillStyle = 'rgba(200, 170, 120, 0.1)'; zctx.fill();
+    }
+  }
+
+  function getZenCoords(e) {
+    var rect = zenCv.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) * (W / rect.width),
+      y: (e.clientY - rect.top) * (H / rect.height)
+    };
+  }
+
+  zenCv.addEventListener('mousedown', function(e) {
+    if (!zenMode) return;
+    var c = getZenCoords(e);
+    zenDrawing = true;
+    zenCurrentStroke = [{ x: c.x, y: c.y }];
+  });
+  zenCv.addEventListener('mousemove', function(e) {
+    if (!zenMode || !zenDrawing) return;
+    var c = getZenCoords(e);
+    zenCurrentStroke.push({ x: c.x, y: c.y });
+    drawZenTrail();
+  });
+  zenCv.addEventListener('mouseup', function() {
+    if (!zenDrawing) return;
+    zenDrawing = false;
+    if (zenCurrentStroke.length > 1) zenStrokes.push(zenCurrentStroke);
+    zenCurrentStroke = [];
+  });
+  zenCv.addEventListener('touchstart', function(e) {
+    if (!zenMode) return;
+    zenDrawing = true;
+    var c = getZenCoords(e.touches[0]);
+    zenCurrentStroke = [{ x: c.x, y: c.y }];
+  }, { passive: true });
+  zenCv.addEventListener('touchmove', function(e) {
+    if (!zenMode || !zenDrawing) return;
+    var c = getZenCoords(e.touches[0]);
+    zenCurrentStroke.push({ x: c.x, y: c.y });
+    drawZenTrail();
+  }, { passive: true });
+  zenCv.addEventListener('touchend', function() {
+    if (!zenDrawing) return;
+    zenDrawing = false;
+    if (zenCurrentStroke.length > 1) zenStrokes.push(zenCurrentStroke);
+    zenCurrentStroke = [];
+  });
+
+  /* Zen undo */
+  document.getElementById('zenUndo').addEventListener('click', function() {
+    if (zenStrokes.length === 0) return;
+    zenStrokes.pop();
+    redrawZenStrokes();
+  });
+
+  /* Zen clear */
+  document.getElementById('zenClear').addEventListener('click', function() {
+    zenStrokes = [];
+    zenCurrentStroke = [];
+    zenPoints = [];
+    zctx.clearRect(0, 0, W, H);
+  });
+
+  /* Zen save */
+  document.getElementById('zenSave').addEventListener('click', function() {
+    var cardW = 800;
+    var cardH = 600;
+    var pad = 40;
+    var paintW = cardW - pad * 2;
+    var paintH = cardH - pad * 2 - 70;
+
+    var expCv = document.createElement('canvas');
+    expCv.width = cardW * 2;
+    expCv.height = cardH * 2;
+    var ectx = expCv.getContext('2d');
+    ectx.scale(2, 2);
+
+    /* Card background */
+    var cGrad = ectx.createLinearGradient(0, 0, cardW, cardH);
+    cGrad.addColorStop(0, '#161210');
+    cGrad.addColorStop(1, '#0e0c0a');
+    ectx.fillStyle = cGrad;
+    ectx.fillRect(0, 0, cardW, cardH);
+
+    /* Border */
+    ectx.strokeStyle = 'rgba(200, 170, 120, 0.15)';
+    ectx.lineWidth = 1;
+    ectx.strokeRect(1, 1, cardW - 2, cardH - 2);
+
+    /* Painting area background */
+    var paintGrad = ectx.createRadialGradient(pad + paintW / 2, pad + paintH / 2, 0, pad + paintW / 2, pad + paintH / 2, Math.max(paintW, paintH) * 0.5);
+    paintGrad.addColorStop(0, '#1a1816');
+    paintGrad.addColorStop(1, '#100e0c');
+    ectx.fillStyle = paintGrad;
+    ectx.fillRect(pad, pad, paintW, paintH);
+
+    /* Painting border */
+    ectx.strokeStyle = 'rgba(200, 170, 120, 0.12)';
+    ectx.strokeRect(pad, pad, paintW, paintH);
+
+    /* Background stars in painting area */
+    for (var i = 0; i < 150; i++) {
+      var bx = pad + Math.random() * paintW, by = pad + Math.random() * paintH;
+      var br2 = 0.3 + Math.random() * 1;
+      ectx.globalAlpha = 0.15 + Math.random() * 0.3;
+      ectx.fillStyle = Math.random() > 0.7 ? '#a0c0e0' : '#fff';
+      ectx.beginPath(); ectx.arc(bx, by, br2, 0, Math.PI * 2); ectx.fill();
+    }
+    ectx.globalAlpha = 1;
+
+    /* Compute bounds of strokes to center them */
+    var minX = W, minY = H, maxX = 0, maxY = 0;
+    for (var s = 0; s < zenStrokes.length; s++) {
+      var pts = zenStrokes[s];
+      for (var p = 0; p < pts.length; p++) {
+        if (pts[p].x < minX) minX = pts[p].x;
+        if (pts[p].y < minY) minY = pts[p].y;
+        if (pts[p].x > maxX) maxX = pts[p].x;
+        if (pts[p].y > maxY) maxY = pts[p].y;
+      }
+    }
+    var strokeW = maxX - minX || 1;
+    var strokeH = maxY - minY || 1;
+    var scale = Math.min(paintW / strokeW, paintH / strokeH, 1.5);
+    var offsetX = pad + (paintW - strokeW * scale) / 2;
+    var offsetY = pad + (paintH - strokeH * scale) / 2;
+
+    /* Zen strokes */
+    for (var s = 0; s < zenStrokes.length; s++) {
+      var pts = zenStrokes[s];
+      if (pts.length < 2) continue;
+      ectx.globalAlpha = 1;
+      ectx.beginPath();
+      ectx.moveTo(offsetX + (pts[0].x - minX) * scale, offsetY + (pts[0].y - minY) * scale);
+      for (var p = 1; p < pts.length; p++) {
+        ectx.lineTo(offsetX + (pts[p].x - minX) * scale, offsetY + (pts[p].y - minY) * scale);
+      }
+      ectx.strokeStyle = 'rgba(200, 170, 120, 0.22)';
+      ectx.lineWidth = 2;
+      ectx.lineCap = 'round';
+      ectx.lineJoin = 'round';
+      ectx.stroke();
+
+      /* Sparkle dots */
+      for (var d = 0; d < pts.length; d += 3) {
+        ectx.globalAlpha = 0.12 + Math.random() * 0.12;
+        ectx.fillStyle = '#c8aa78';
+        ectx.beginPath();
+        ectx.arc(offsetX + (pts[d].x - minX) * scale + (Math.random() - 0.5) * 4,
+                 offsetY + (pts[d].y - minY) * scale + (Math.random() - 0.5) * 4,
+                 Math.random() * 1.5 + 0.3, 0, Math.PI * 2);
+        ectx.fill();
+      }
+    }
+    ectx.globalAlpha = 1;
+
+    /* Bottom area: title and date */
+    var bottomY = pad + paintH + 20;
+
+    /* Divider */
+    var divGrad = ectx.createLinearGradient(pad, 0, pad + paintW, 0);
+    divGrad.addColorStop(0, 'transparent');
+    divGrad.addColorStop(0.5, 'rgba(200, 170, 120, 0.2)');
+    divGrad.addColorStop(1, 'transparent');
+    ectx.fillStyle = divGrad;
+    ectx.fillRect(pad, bottomY, paintW, 1);
+
+    /* Title */
+    ectx.fillStyle = '#c8aa78';
+    ectx.font = '18px "PingFang SC", "Noto Serif SC", sans-serif';
+    ectx.textAlign = 'center';
+    ectx.fillText('禅意绘画', cardW / 2, bottomY + 26);
+
+    /* Date */
+    var now = new Date();
+    var dateStr = now.getFullYear() + '.' + String(now.getMonth() + 1).padStart(2, '0') + '.' + String(now.getDate()).padStart(2, '0');
+    ectx.fillStyle = '#706860';
+    ectx.font = '12px "PingFang SC", "Noto Serif SC", sans-serif';
+    ectx.fillText(dateStr + ' · ' + zenStrokes.length + ' 笔', cardW / 2, bottomY + 46);
+
+    var link = document.createElement('a');
+    link.download = '禅意绘画-' + Date.now() + '.png';
+    link.href = expCv.toDataURL('image/png');
+    link.click();
+
+    var toast = document.getElementById('zenSaveToast');
+    toast.classList.add('visible');
+    setTimeout(function() { toast.classList.remove('visible'); }, 2000);
+  });
+
+  /* Zen close */
+  document.getElementById('zenClose').addEventListener('click', function() {
+    zenMode = false;
+    document.getElementById('btnZenGarden').classList.remove('active');
+    zenCv.style.pointerEvents = 'none';
+    closeZenToolbar();
+  });
+
+  document.getElementById('btnZenGarden').addEventListener('click', function() {
+    zenMode = !zenMode;
+    this.classList.toggle('active', zenMode);
+    zenCv.style.pointerEvents = zenMode ? 'auto' : 'none';
+    if (zenMode) {
+      zenStrokes = []; zenCurrentStroke = []; zenPoints = [];
+      zctx.clearRect(0, 0, W, H);
+      openZenToolbar();
+    } else {
+      closeZenToolbar();
+    }
+  });
+
+  /* ===== STAR SANDBOX BUTTON ===== */
+  document.getElementById('btnStarSandbox').addEventListener('click', function() {
+    if (zenMode) closeZenMode();
+    if (typeof window.sbOpenSandbox === 'function') {
+      window.sbOpenSandbox();
+    }
+  });
+
+  /* ===== MELODY ===== */
+  document.getElementById('melodyToggle').addEventListener('click', function() {
+    if (zenMode) closeZenMode();
+    if (melodyOn) { stopMelody(); this.classList.remove('active'); }
+    else { startMelody(); this.classList.add('active'); }
+  });
+
+  /* ===== GENERATIVE ART SAVE (press S) ===== */
+  window.addEventListener('keydown', function(e) {
+    var sandboxOpen = document.getElementById('starSandbox').classList.contains('active');
+    if (e.key === 's' && currentScene === 'main' && !breathGuideActive && !sandboxOpen) {
+      e.preventDefault();
+      saveGenerativeArt();
+    }
+  });
+
+  function saveGenerativeArt() {
+    var tempCv = document.createElement('canvas');
+    tempCv.width = W * 2; tempCv.height = H * 2;
+    var tctx = tempCv.getContext('2d');
+
+    /* Background */
+    var season = SEASONS[currentSeason];
+    var grad = tctx.createRadialGradient(W, H, 0, W, H, Math.max(W, H) * 0.7);
+    grad.addColorStop(0, season.bgCenter);
+    grad.addColorStop(1, season.bgEdge);
+    tctx.fillStyle = grad;
+    tctx.fillRect(0, 0, tempCv.width, tempCv.height);
+
+    /* Particles */
+    for (var i = 0; i < particles.length; i++) {
+      var p = particles[i];
+      if (p.opacity < 0.01) continue;
+      tctx.globalAlpha = p.opacity;
+      tctx.fillStyle = p.color;
+      if (p.size > 1.5) { tctx.shadowColor = p.color; tctx.shadowBlur = p.size * 8; }
+      tctx.beginPath();
+      tctx.arc(p.x * 2, p.y * 2, p.size * 2, 0, Math.PI * 2);
+      tctx.fill();
+    }
+
+    /* Title */
+    tctx.shadowBlur = 0;
+    tctx.globalAlpha = 0.6;
+    tctx.fillStyle = '#c8aa78';
+    tctx.font = '24px serif';
+    tctx.textAlign = 'center';
+    tctx.fillText('空白帧 — Blank Frame', W, H * 2 - 30);
+    tctx.globalAlpha = 1;
+
+    var link = document.createElement('a');
+    link.download = 'blank-frame-' + Date.now() + '.png';
+    link.href = tempCv.toDataURL('image/png');
+    link.click();
+
+    var toast = document.getElementById('saveToast');
+    toast.classList.add('visible');
+    setTimeout(function() { toast.classList.remove('visible'); }, 2000);
+  }
+
+  /* ===== SHOOTING STARS ===== */
+  var shootingStars = [];
+  var nextStarTime = 5000;
+
+  function spawnShootingStar() {
+    var container = document.getElementById('mainSpace');
+    if (currentScene !== 'main') return;
+
+    var startY = Math.random() * H * 0.4;
+    var startX = Math.random() * W * 0.3;
+    var angle = 25 + Math.random() * 20;
+    var speed = 8 + Math.random() * 6;
+    var tailLen = 40 + Math.random() * 40;
+
+    var el = document.createElement('div');
+    el.className = 'shooting-star';
+    el.innerHTML = '<div class="star-core"></div><div class="star-tail" style="width:' + tailLen + 'px"></div>';
+    el.style.left = startX + 'px';
+    el.style.top = startY + 'px';
+    el.style.transform = 'rotate(' + angle + 'deg)';
+
+    var star = {
+      el: el, x: startX, y: startY,
+      vx: Math.cos(angle * Math.PI / 180) * speed,
+      vy: Math.sin(angle * Math.PI / 180) * speed,
+      alive: true
+    };
+
+    el.addEventListener('click', function(e) {
+      if (!star.alive) return;
+      e.stopPropagation();
+      star.alive = false;
+      el.remove();
+      wishCount++;
+      updateEmotionCounter();
+      createWishBurst(star.x, star.y);
+    });
+
+    container.appendChild(el);
+    shootingStars.push(star);
+    nextStarTime = 8000 + Math.random() * 20000;
+  }
+
+  function createWishBurst(x, y) {
+    var colors = ['#c8aa78', '#fff', '#d8b888', '#a0c8b0', '#b89098', '#88a0b8'];
+    for (var i = 0; i < 40; i++) {
+      var angle = (Math.PI * 2 / 40) * i;
+      var speed = 2 + Math.random() * 4;
+      particles.push(createParticle({
+        x: x, y: y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        size: Math.random() * 2.5 + 1,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        opacity: 0.9,
+        life: 3000 + Math.random() * 2000,
+        maxLife: 5000
+      }));
+    }
+  }
+
+  function updateShootingStars(dt) {
+    for (var i = 0; i < shootingStars.length; i++) {
+      var s = shootingStars[i];
+      if (!s.alive) { shootingStars.splice(i, 1); i--; continue; }
+      s.x += s.vx; s.y += s.vy;
+      s.el.style.left = s.x + 'px';
+      s.el.style.top = s.y + 'px';
+      if (s.x > W + 100 || s.y > H + 100) {
+        s.alive = false;
+        s.el.remove();
+        shootingStars.splice(i, 1); i--;
+      }
+    }
+  }
+
+  /* ===== DOUBLE-CLICK GALAXY BURST ===== */
+  var lastClickTime = 0;
+  document.addEventListener('mousedown', function(e) {
+    if (currentScene !== 'main') return;
+    var now = Date.now();
+    if (now - lastClickTime < 350) {
+      var tag = e.target.tagName.toLowerCase();
+      var isInteractive = tag === 'button' || tag === 'input' || tag === 'textarea' || tag === 'canvas';
+      var hasClickHandler = e.target.closest('#breathSphere') || e.target.closest('#toolbar') || e.target.closest('#mixer') || e.target.closest('#emotionHistory') || e.target.closest('#seasonSelector') || e.target.closest('#presets') || e.target.closest('#weatherWidget') || e.target.closest('#timeCounter') || e.target.closest('#melodyToggle') || e.target.closest('#returnBtn') || e.target.closest('#timeCapsule') || e.target.closest('#emotionCounter') || e.target.closest('#timeCapsuleModal') || e.target.closest('.shooting-star');
+      if (!isInteractive && !hasClickHandler) {
+        createGalaxyBurst(e.clientX, e.clientY);
+      }
+    }
+    lastClickTime = now;
+  });
+
+  function createGalaxyBurst(x, y) {
+    var colors = ['#c8aa78', '#fff', '#90b8a0', '#88a0b8', '#b89098', '#d8b888'];
+    for (var ring = 0; ring < 3; ring++) {
+      var count = 15 + ring * 8;
+      var ringSpeed = 1.5 - ring * 0.3;
+      for (var i = 0; i < count; i++) {
+        var angle = (Math.PI * 2 / count) * i + ring * 0.3;
+        particles.push(createParticle({
+          x: x, y: y,
+          vx: Math.cos(angle) * ringSpeed * (1 + Math.random()),
+          vy: Math.sin(angle) * ringSpeed * (1 + Math.random()),
+          size: Math.random() * 2 + 0.8,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          opacity: 0.7 + Math.random() * 0.3,
+          life: 4000 + Math.random() * 3000,
+          maxLife: 7000
+        }));
+      }
+    }
+  }
+
+  /* ===== FLOATING EMOJI REACTIONS ===== */
+  var emojiPool = ['', '', '', '', '', '', '☁', '✨', '', '', '', '☾'];
+  var nextEmojiTime = 10000;
+
+  function spawnFloatingEmoji() {
+    if (currentScene !== 'main') return;
+    var container = document.getElementById('mainSpace');
+    var emoji = emojiPool[Math.floor(Math.random() * emojiPool.length)];
+    var el = document.createElement('div');
+    el.className = 'floating-emoji';
+    el.textContent = emoji;
+    el.style.left = (5 + Math.random() * 90) + '%';
+    el.style.bottom = '0';
+    el.style.animationDuration = (6 + Math.random() * 4) + 's';
+    container.appendChild(el);
+    setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 10000);
+    nextEmojiTime = 12000 + Math.random() * 18000;
+  }
+
+  /* ===== EMOTION COUNTER ===== */
+  var emotionReleaseCount = 0;
+  var wishCount = 0;
+
+  function updateEmotionCounter() {
+    var el = document.getElementById('emotionCounter');
+    var val = document.getElementById('counterValue');
+    emotionReleaseCount = emotionHistory.length;
+    val.textContent = emotionReleaseCount + (wishCount > 0 ? (' · ' + wishCount + ' 次许愿') : '');
+    el.classList.toggle('visible', emotionReleaseCount > 0 || wishCount > 0);
+  }
+
+  /* ===== CONSTELLATION FOR EMOTIONS ===== */
+  var constellationStars = [];
+
+  function addConstellationStar(entry) {
+    var container = document.getElementById('constellationLayer');
+    var x = 15 + Math.random() * 70;
+    var y = 20 + Math.random() * 60;
+
+    var el = document.createElement('div');
+    el.className = 'constellation-star';
+    el.style.left = x + '%';
+    el.style.top = y + '%';
+    el.style.animationDelay = Math.random() * 2 + 's';
+    var primaryMood = entry.mood.split(',')[0];
+    var moodColor = MOOD_COLORS[primaryMood] ? MOOD_COLORS[primaryMood][0] : '#c8aa78';
+
+    var moodLabel = { tired:'疲惫', anxious:'焦虑', sad:'低落', lost:'迷茫', calm:'平静', numb:'麻木', angry:'烦躁', hopeful:'微光' };
+    el.innerHTML = '<div class="star-dot" style="background:' + moodColor + ';box-shadow:0 0 10px ' + moodColor + '"></div><div class="star-label">' + (moodLabel[primaryMood]||'') + '</div>';
+    container.appendChild(el);
+
+    constellationStars.push({ x: x, y: y, el: el, mood: entry.mood });
+    drawConstellationLines();
+  }
+
+  function drawConstellationLines() {
+    var layer = document.getElementById('constellationLayer');
+    var existingSvg = layer.querySelector('svg');
+    if (existingSvg) existingSvg.remove();
+    if (constellationStars.length < 2) return;
+
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '100%');
+    svg.setAttribute('height', '100%');
+    svg.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;z-index:0;';
+
+    for (var i = 0; i < constellationStars.length; i++) {
+      for (var j = i + 1; j < constellationStars.length; j++) {
+        var a = constellationStars[i], b = constellationStars[j];
+        var dx = a.x - b.x, dy = a.y - b.y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 35) {
+          var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          line.setAttribute('x1', a.x + '%');
+          line.setAttribute('y1', a.y + '%');
+          line.setAttribute('x2', b.x + '%');
+          line.setAttribute('y2', b.y + '%');
+          line.setAttribute('stroke', 'rgba(200,170,120,0.08)');
+          line.setAttribute('stroke-width', '0.5');
+          svg.appendChild(line);
+        }
+      }
+    }
+    layer.appendChild(svg);
+  }
+
+  /* ===== TIME CAPSULE ===== */
+  var timeCapsules = [];
+
+  document.getElementById('timeCapsule').addEventListener('click', function() {
+    if (zenMode) closeZenMode();
+    document.getElementById('timeCapsuleModal').classList.add('active');
+  });
+
+  document.getElementById('closeCapsule').addEventListener('click', function() {
+    document.getElementById('timeCapsuleModal').classList.remove('active');
+  });
+
+  document.getElementById('sealCapsule').addEventListener('click', function() {
+    var msg = document.getElementById('capsuleMessage').value.trim();
+    if (!msg) return;
+    var duration = parseInt(document.getElementById('capsuleDuration').value);
+    var unlockTime = Date.now() + duration;
+
+    timeCapsules.push({ message: msg, unlockTime: unlockTime, sealed: true });
+    document.getElementById('capsuleMessage').value = '';
+    document.getElementById('timeCapsuleModal').classList.remove('active');
+
+    /* Spawn particles that drift upward like a sealed letter */
+    for (var i = 0; i < 30; i++) {
+      particles.push(createParticle({
+        x: W / 2 + (Math.random() - 0.5) * 200,
+        y: H / 2,
+        vy: -(0.5 + Math.random()),
+        size: Math.random() * 2 + 0.5,
+        color: '#c8aa78',
+        opacity: 0.5 + Math.random() * 0.3,
+        life: 5000 + Math.random() * 3000,
+        maxLife: 8000
+      }));
+    }
+  });
+
+  function checkTimeCapsules() {
+    var now = Date.now();
+    for (var i = 0; i < timeCapsules.length; i++) {
+      var tc = timeCapsules[i];
+      if (tc.sealed && now >= tc.unlockTime) {
+        tc.sealed = false;
+        showTimeCapsuleMessage(tc.message);
+      }
+    }
+  }
+
+  function showTimeCapsuleMessage(msg) {
+    var container = document.getElementById('mainSpace');
+    var el = document.createElement('div');
+    el.style.cssText = 'position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);z-index:10;text-align:center;pointer-events:auto;animation:fadeUp 2s ease forwards;';
+    el.innerHTML = '<div class="tc-title" style="font-size:0.92rem;color:#ffffff;letter-spacing:0.12em;margin-bottom:0.5rem;">时光胶囊解锁了</div><div class="tc-text" style="font-size:1.1rem;color:#c8aa78;letter-spacing:0.1em;max-width:320px;line-height:1.6;">' + msg + '</div>';
+    container.appendChild(el);
+
+    /* After 5 seconds, dissolve both lines into particles simultaneously */
+    setTimeout(function() {
+      var titleEl = el.querySelector('.tc-title');
+      var textEl = el.querySelector('.tc-text');
+      var containerRect = container.getBoundingClientRect();
+      var cx = containerRect.width / 2;
+      var cy = containerRect.height * 0.4;
+
+      /* Spawn particles from both title and message positions */
+      var elements = [{ el: titleEl, color: '#ffffff' }, { el: textEl, color: '#c8aa78' }];
+      for (var e = 0; e < elements.length; e++) {
+        var rect = elements[e].el.getBoundingClientRect();
+        if (!rect) continue;
+        var centerX = rect.left - containerRect.left + rect.width / 2;
+        var centerY = rect.top - containerRect.top + rect.height / 2;
+        for (var i = 0; i < 30; i++) {
+          var angle = Math.random() * Math.PI * 2;
+          var speed = 0.3 + Math.random() * 1.5;
+          particles.push(createParticle({
+            x: centerX + (Math.random() - 0.5) * rect.width * 0.8,
+            y: centerY + (Math.random() - 0.5) * rect.height * 0.8,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 0.5,
+            size: 1 + Math.random() * 2,
+            color: elements[e].color,
+            opacity: 0.4 + Math.random() * 0.4,
+            life: 2000 + Math.random() * 1500,
+            maxLife: 3500,
+            decay: 1
+          }));
+        }
+      }
+
+      /* Fade out both simultaneously */
+      titleEl.style.transition = 'opacity 2.5s ease';
+      titleEl.style.opacity = '0';
+      textEl.style.transition = 'opacity 2.5s ease';
+      textEl.style.opacity = '0';
+
+      setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 2500);
+    }, 5000);
+  }
+
+  /* ===== AMBIENT AUDIO-REACTIVE COLOR PULSE ===== */
+  var ambientHue = 0;
+
+  function updateAmbientPulse() {
+    if (!audioCtx || !audioInitialized) return;
+    var totalGain = 0;
+    if (audioNodes.rain && audioNodes.rain.el) totalGain += audioNodes.rain.el.volume;
+    if (audioNodes.wind && audioNodes.wind.el) totalGain += audioNodes.wind.el.volume;
+    if (audioNodes.crickets && audioNodes.crickets.el) totalGain += audioNodes.crickets.el.volume;
+    if (audioNodes.night && audioNodes.night.el) totalGain += audioNodes.night.el.volume;
+
+    if (totalGain > 0.01) {
+      ambientHue += totalGain * 0.3;
+      var hue = (ambientHue % 360);
+      var alpha = Math.min(totalGain * 0.02, 0.06);
+      var bgEl = document.getElementById('mainSpace');
+      bgEl.style.boxShadow = 'inset 0 0 120px 60px hsla(' + hue + ', 20%, 15%, ' + alpha + ')';
+    } else {
+      document.getElementById('mainSpace').style.boxShadow = '';
+    }
+  }
+
+  /* ===== DRAG TRAIL (breathing sphere) ===== */
+  var trailTimer = 0;
+
+  function spawnDragTrail(x, y) {
+    var container = document.getElementById('mainSpace');
+    var el = document.createElement('div');
+    el.className = 'drag-trail';
+    el.style.left = (x - 3 + (Math.random()-0.5)*8) + 'px';
+    el.style.top = (y - 3 + (Math.random()-0.5)*8) + 'px';
+    var size = 4 + Math.random() * 4;
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    container.appendChild(el);
+    setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 2000);
+  }
+
+  /* Override the sphere drag to spawn trails */
+  var origMouseMove = window.onmousemove;
+  var _origAddEventListener = window.addEventListener.bind(window);
+  /* We hook via replacing the existing mousemove handler */
+
+  /* Store reference to original mousemove handler */
+  var _sphereDragTrailInterval = null;
+  var _origMouseMoveHandler = null;
+
+  /* Patch the existing window.addEventListener('mousemove') to also spawn trails */
+  /* Instead of complex patching, we add a second mousemove listener for trail */
+  window.addEventListener('mousemove', function(e) {
+    if (sphereDragging && currentScene === 'main') {
+      spawnDragTrail(e.clientX, e.clientY);
+    }
+  });
+
+  /* ===== MEMORY JAR ===== */
+  var collectedParticles = 0;
+
+  document.getElementById('memoryJar').addEventListener('click', function() {
+    if (zenMode) closeZenMode();
+    document.getElementById('jarCount').textContent = '你收集了 ' + collectedParticles + ' 颗记忆碎片';
+    document.getElementById('memoryJarModal').classList.add('active');
+  });
+
+  document.getElementById('closeJar').addEventListener('click', function() {
+    document.getElementById('memoryJarModal').classList.remove('active');
+  });
+
+  document.getElementById('memoryJarModal').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('active');
+  });
+
+  /* ===== CLICKABLE PARTICLES ===== */
+  /* Check if mouse click hits a particle in main space */
+  document.addEventListener('click', function(e) {
+    if (currentScene !== 'main') return;
+    var tag = e.target.tagName.toLowerCase();
+    var isInteractive = tag === 'button' || tag === 'input' || tag === 'textarea' || tag === 'canvas';
+    if (isInteractive) return;
+    if (e.target.closest('#breathSphere') || e.target.closest('#toolbar') || e.target.closest('#mixer') || e.target.closest('#memoryJar') || e.target.closest('#memoryJarModal') || e.target.closest('.shooting-star') || e.target.closest('#emotionCounter') || e.target.closest('#timeCapsule') || e.target.closest('#timeCapsuleModal') || e.target.closest('#silenceMsg')) return;
+
+    var mx = e.clientX, my = e.clientY;
+    var clickRadius = 12;
+    for (var i = particles.length - 1; i >= 0; i--) {
+      var p = particles[i];
+      if (p.life === Infinity) continue; /* Only collect temporary particles */
+      var dx = p.x - mx, dy = p.y - my;
+      var dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < clickRadius) {
+        /* Collect this particle */
+        collectedParticles++;
+        particles.splice(i, 1);
+
+        /* Play collection sound */
+        try {
+          if (!audioCtx) initAudio();
+          if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+          var osc = audioCtx.createOscillator();
+          var g = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(800 + Math.random() * 400, audioCtx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(1200 + Math.random() * 600, audioCtx.currentTime + 0.08);
+          g.gain.setValueAtTime(0.12, audioCtx.currentTime);
+          g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+          osc.connect(g); g.connect(audioCtx.destination);
+          osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+        } catch(e) {}
+
+        /* Small collection burst */
+        for (var j = 0; j < 6; j++) {
+          var angle = (Math.PI * 2 / 6) * j;
+          particles.push(createParticle({
+            x: p.x, y: p.y,
+            vx: Math.cos(angle) * 1.5,
+            vy: Math.sin(angle) * 1.5,
+            size: 1,
+            color: p.color,
+            opacity: 0.8,
+            life: 1500,
+            maxLife: 1500
+          }));
+        }
+        break; /* Only collect one per click */
+      }
+    }
+  });
+
+  /* ===== SILENCE MILESTONES ===== */
+  var lastInteractionTime = Date.now();
+  var silenceMilestoneIndex = 0;
+  var silenceMsgEl = document.getElementById('silenceMsg');
+
+  var SILENCE_MILESTONES = [
+    { time: 30000, msg: '你已经安静了半分钟' },
+    { time: 60000, msg: '一分钟的放空，很好' },
+    { time: 180000, msg: '三分钟了，星空在陪你' },
+    { time: 300000, msg: '五分钟的沉默，是最温柔的陪伴' },
+    { time: 600000, msg: '十分钟的放空，这片星空只属于你' }
+  ];
+
+  function recordInteraction() {
+    lastInteractionTime = Date.now();
+    silenceMilestoneIndex = 0;
+    silenceMsgEl.classList.remove('visible');
+  }
+
+  function checkSilenceMilestones() {
+    if (currentScene !== 'main') return;
+    var elapsed = Date.now() - lastInteractionTime;
+    if (silenceMilestoneIndex < SILENCE_MILESTONES.length && elapsed >= SILENCE_MILESTONES[silenceMilestoneIndex].time) {
+      silenceMsgEl.textContent = SILENCE_MILESTONES[silenceMilestoneIndex].msg;
+      silenceMsgEl.classList.add('visible');
+      silenceMilestoneIndex++;
+
+      /* Hide after display */
+      var milestoneTime = SILENCE_MILESTONES[silenceMilestoneIndex - 1].time;
+      setTimeout(function() {
+        silenceMsgEl.classList.remove('visible');
+      }, 6000);
+    }
+  }
+
+  /* Track interactions for silence timer */
+  document.addEventListener('mousedown', recordInteraction);
+  document.addEventListener('keydown', recordInteraction);
+
+  /* ===== WHISPERED THOUGHTS ===== */
+  var whisperMode = false;
+  var whisperInput = '';
+
+  window.addEventListener('keydown', function(e) {
+    var sandboxOpen2 = document.getElementById('starSandbox').classList.contains('active');
+    if (e.key === 'w' && currentScene === 'main' && !breathGuideActive && !zenMode && !sandboxOpen2) {
+      if (!whisperMode) {
+        whisperMode = true;
+        whisperInput = '';
+        showWhisperPrompt();
+      }
+    }
+  });
+
+  function showWhisperPrompt() {
+    var existing = document.getElementById('whisperPrompt');
+    if (existing) { existing.remove(); return; }
+
+    var container = document.getElementById('mainSpace');
+    var el = document.createElement('div');
+    el.id = 'whisperPrompt';
+    el.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10;text-align:center;pointer-events:none;';
+    el.innerHTML = '<div style="font-size:0.9rem;color:#ffffff;letter-spacing:0.12em;">写下你想说的话，然后按 Enter 放飞…</div>';
+    container.appendChild(el);
+
+    var input = document.createElement('input');
+    input.id = 'whisperInput';
+    input.style.cssText = 'position:absolute;top:55%;left:50%;transform:translate(-50%,-50%);background:transparent;border:none;border-bottom:1px solid rgba(200,170,120,0.2);color:#ffffff;font-family:inherit;font-size:1.05rem;letter-spacing:0.12em;text-align:center;outline:none;padding:0.5rem 0;min-width:280px;z-index:10;';
+    input.placeholder = '…';
+    container.appendChild(input);
+    input.focus();
+
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        var text = this.value.trim();
+        if (text) releaseWhisper(text);
+        el.remove();
+        this.remove();
+        whisperMode = false;
+      } else if (e.key === 'Escape') {
+        el.remove();
+        this.remove();
+        whisperMode = false;
+      }
+    });
+  }
+
+  function releaseWhisper(text) {
+    var container = document.getElementById('mainSpace');
+    var el = document.createElement('div');
+    el.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:1rem;color:rgba(200,170,120,0.5);letter-spacing:0.15em;pointer-events:none;z-index:5;transition:all 5s ease;white-space:nowrap;';
+    el.textContent = text;
+    container.appendChild(el);
+
+    /* Animate upward and fading */
+    requestAnimationFrame(function() {
+      el.style.transform = 'translate(-50%, calc(-50% - 200px))';
+      el.style.opacity = '0';
+    });
+
+    setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 5000);
+
+    /* Spawn particles around the whisper */
+    for (var i = 0; i < 20; i++) {
+      particles.push(createParticle({
+        x: W / 2 + (Math.random()-0.5) * text.length * 10,
+        y: H / 2,
+        vy: -(0.3 + Math.random() * 0.5),
+        vx: (Math.random()-0.5) * 0.5,
+        size: Math.random() * 2 + 0.5,
+        color: '#c8aa78',
+        opacity: 0.6,
+        life: 4000 + Math.random() * 2000,
+        maxLife: 6000
+      }));
+    }
+  }
+
+  /* ===== ECHO FRAGMENTS ===== */
+  var echoMessages = [
+    '有人在这里留下过：今天好累',
+    '另一个声音说：想休息一下',
+    '有人写过：就这样待着就好',
+    '曾经有人说：不需要答案也可以',
+    '有人在这里说：明天会更好吧',
+    '另一个声音：放空也是一种力量',
+    '有人写道：沉默比回答更温柔',
+    '曾经有人：把烦恼交给了星空',
+    '有人说：安静地待着，也很好',
+    '另一个声音：此刻不需要做什么'
+  ];
+  var nextEchoTime = 15000;
+
+  function spawnEchoFragment() {
+    if (currentScene !== 'main') return;
+    var container = document.getElementById('mainSpace');
+    var msg = echoMessages[Math.floor(Math.random() * echoMessages.length)];
+    var el = document.createElement('div');
+    el.className = 'echo-fragment';
+    el.textContent = msg;
+    el.style.top = (15 + Math.random() * 60) + '%';
+    container.appendChild(el);
+    setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 22000);
+    nextEchoTime = 20000 + Math.random() * 30000;
+  }
+
+  /* ===== AUDIO WAVEFORM ===== */
+  var waveCanvas = document.getElementById('audioWaveform');
+  var waveCtx = waveCanvas.getContext('2d');
+
+  function updateAudioWaveform() {
+    if (!audioCtx || !audioInitialized) {
+      waveCanvas.classList.remove('active');
+      return;
+    }
+
+    var totalGain = 0;
+    if (audioNodes.rain && audioNodes.rain.el) totalGain += audioNodes.rain.el.volume;
+    if (audioNodes.wind && audioNodes.wind.el) totalGain += audioNodes.wind.el.volume;
+    if (audioNodes.crickets && audioNodes.crickets.el) totalGain += audioNodes.crickets.el.volume;
+    if (audioNodes.night && audioNodes.night.el) totalGain += audioNodes.night.el.volume;
+
+    if (totalGain < 0.01) {
+      waveCanvas.classList.remove('active');
+      return;
+    }
+
+    waveCanvas.classList.add('active');
+    var w = waveCanvas.width, h = waveCanvas.height;
+    waveCtx.clearRect(0, 0, w, h);
+
+    var bars = 30;
+    var barWidth = w / bars - 1;
+    var time = Date.now() / 1000;
+
+    for (var i = 0; i < bars; i++) {
+      var amplitude = totalGain * (0.3 + 0.7 * Math.sin(i * 0.4 + time * 2));
+      var barHeight = amplitude * h * 0.8;
+      var alpha = 0.1 + totalGain * 0.3;
+      waveCtx.fillStyle = 'rgba(200, 170, 120, ' + alpha + ')';
+      waveCtx.fillRect(i * (barWidth + 1), h / 2 - barHeight / 2, barWidth, barHeight);
+    }
+  }
+
+  /* ===== MOOD DISTRIBUTION CHART ===== */
+  function updateMoodChart() {
+    var container = document.getElementById('moodChart');
+    if (emotionHistory.length < 2) {
+      container.classList.remove('visible');
+      return;
+    }
+
+    container.classList.add('visible');
+    var moodCounts = {};
+    emotionHistory.forEach(function(e) {
+      moodCounts[e.mood] = (moodCounts[e.mood] || 0) + 1;
+    });
+
+    var total = emotionHistory.length;
+    var moodColors = {
+      tired: '#8a8078', anxious: '#b89098', sad: '#7080b0',
+      lost: '#9090a0', calm: '#90b8a0', numb: '#606068',
+      angry: '#b87878', hopeful: '#c8aa78'
+    };
+
+    /* Build a small SVG bar chart */
+    var svg = '<svg width="180" height="40" xmlns="http://www.w3.org/2000/svg">';
+    var x = 0;
+    var barH = 8;
+    var moods = Object.keys(moodCounts);
+    var moodLabels = { tired:'疲惫', anxious:'焦虑', sad:'低落', lost:'迷茫', calm:'平静', numb:'麻木', angry:'烦躁', hopeful:'微光' };
+
+    for (var i = 0; i < moods.length; i++) {
+      var mood = moods[i];
+      var width = (moodCounts[mood] / total) * 170;
+      var color = moodColors[mood] || '#c8aa78';
+      svg += '<rect x="' + x + '" y="0" width="' + width + '" height="' + barH + '" fill="' + color + '" rx="2"/>';
+      x += width + 2;
+    }
+
+    /* Labels row */
+    x = 0;
+    for (var i = 0; i < moods.length; i++) {
+      var mood = moods[i];
+      var width = (moodCounts[mood] / total) * 170;
+      if (width > 15) {
+        svg += '<text x="' + (x + width/2) + '" y="20" font-size="6" fill="#5a5650" text-anchor="middle">' + (moodLabels[mood]||'') + '</text>';
+      }
+      x += width + 2;
+    }
+
+    svg += '</svg>';
+    container.innerHTML = svg;
+  }
+
+  /* ===== DEEP NIGHT MODE ===== */
+  function isNightHours() {
+    var hour = new Date().getHours();
+    return hour >= 22 || hour < 5;
+  }
+
+  var nightModeActive = false;
+
+  function checkNightMode() {
+    if (currentScene !== 'main') return;
+    if (isNightHours() && !nightModeActive) {
+      nightModeActive = true;
+      /* Dim particles */
+      particles.forEach(function(p) {
+        p.opacity *= 0.6;
+        p.baseOpacity *= 0.6;
+      });
+    } else if (!isNightHours() && nightModeActive) {
+      nightModeActive = false;
+      particles.forEach(function(p) {
+        p.opacity /= 0.6;
+        p.baseOpacity /= 0.6;
+      });
+    }
+  }
+
+  /* ===== MAIN RENDER LOOP ===== */
+  var lastTime = 0;
+
+  function render(timestamp) {
+    var dt = timestamp - lastTime;
+    lastTime = timestamp;
+
+    var season = SEASONS[currentSeason];
+    ctx.fillStyle = '#06060b';
+    ctx.fillRect(0, 0, W, H);
+
+    var grad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W,H)*0.7);
+    grad.addColorStop(0, season.bgCenter);
+    grad.addColorStop(1, season.bgEdge);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    breathPhase += dt * 0.001;
+
+    if (currentScene === 'main' || currentScene === 'emotion') {
+      updateParticles(dt);
+      drawParticles();
+      drawRipples();
+
+      /* Shooting stars */
+      if (currentScene === 'main') {
+        nextStarTime -= dt;
+        if (nextStarTime <= 0) spawnShootingStar();
+        updateShootingStars(dt);
+
+        /* Floating emoji */
+        nextEmojiTime -= dt;
+        if (nextEmojiTime <= 0) spawnFloatingEmoji();
+
+        /* Echo fragments */
+        nextEchoTime -= dt;
+        if (nextEchoTime <= 0) spawnEchoFragment();
+
+        /* Time capsule check */
+        checkTimeCapsules();
+
+        /* Ambient pulse */
+        updateAmbientPulse();
+
+        /* Audio waveform */
+        updateAudioWaveform();
+
+        /* Silence milestone */
+        checkSilenceMilestones();
+
+        /* Mood chart */
+        updateMoodChart();
+
+        /* Night mode */
+        checkNightMode();
+      }
+    } else if (currentScene === 'landing') {
+      for (var i = 0; i < particles.length; i++) {
+        var p = particles[i];
+        p.x += p.vx; p.y += p.vy;
+        p.x += Math.sin(p.phase + timestamp*0.0003) * 0.05;
+        p.y += Math.cos(p.phase + timestamp*0.0004) * 0.04;
+        var m = 50;
+        if (p.x < -m) p.x = W+m; if (p.x > W+m) p.x = -m;
+        if (p.y < -m) p.y = H+m; if (p.y > H+m) p.y = -m;
+      }
+      drawParticles();
+    }
+
+    requestAnimationFrame(render);
+  }
+
+  requestAnimationFrame(render);
+
+})();
+
+/* ===== STAR SANDBOX ===== */
+(function() {
+  var sandboxElements = [];
+  var sandboxConnections = [];
+  var sandboxTool = 'star';
+  var sandboxSelectedId = null;
+  var sandboxConnectFrom = null;
+  var sandboxDragging = false;
+  var sandboxDragElement = null;
+  var sandboxDragOffX = 0, sandboxDragOffY = 0;
+  var sandboxMouseX = 0, sandboxMouseY = 0;
+  var sandboxBgStars = [];
+  var sandboxIdCounter = 0;
+  var sbCv, sbCtx, sbW, sbH, sbDpr;
+  var sbViewMode = false;
+  var sbExportDescription = '';
+  var sbClickEffects = [];
+  var sbStardustTrail = [];
+  var sbEpicEvents = [];
+  var sbAudioCtx = null;
+
+  var SB_ELEMENT_TYPES = {
+    star:   { label: '恒星', defaultSize: 10, defaultColor: '#c8aa78', glowSize: 30, soundFreq: 880, soundType: 'sine' },
+    planet: { label: '行星', defaultSize: 6, defaultColor: '#88a0b8', glowSize: 12, soundFreq: 440, soundType: 'triangle' },
+    nebula: { label: '星云', defaultSize: 20, defaultColor: '#b89098', glowSize: 40, soundFreq: 220, soundType: 'sine' },
+    meteor: { label: '流星', defaultSize: 2, defaultColor: '#ffffff', glowSize: 10, soundFreq: 1200, soundType: 'sawtooth' }
+  };
+
+  var SB_POETIC_NAMES = {
+    star:   ['启明','天狼','北辰','长庚','太白','荧惑','镇星','辰星','钩陈','帝星','摇光','天枢','天璇','天玑','玉衡','开阳'],
+    planet: ['望舒','羲和','苍龙','朱雀','白虎','玄武','青龙','岁星','填星','荧惑'],
+    nebula: ['紫微','太微','天市','银河','云汉','星汉','天潢','积薪'],
+    meteor: ['飞星','流火','天箭','光痕','瞬华','掠影']
+  };
+
+  function sbFindElement(id) {
+    for (var i = 0; i < sandboxElements.length; i++) {
+      if (sandboxElements[i].id === id) return sandboxElements[i];
+    }
+    return null;
+  }
+
+  function sbFindElementAt(x, y) {
+    for (var i = sandboxElements.length - 1; i >= 0; i--) {
+      var el = sandboxElements[i];
+      var hitR = Math.max(el.size + 8, 12);
+      var dx = el.x - x, dy = el.y - y;
+      if (dx * dx + dy * dy < hitR * hitR) return el;
+    }
+    return null;
+  }
+
+  function shiftColor(hex, amount) {
+    var r = parseInt(hex.slice(1,3), 16) + amount;
+    var g = parseInt(hex.slice(3,5), 16) + amount;
+    var b = parseInt(hex.slice(5,7), 16) + amount;
+    r = Math.max(0, Math.min(255, r));
+    g = Math.max(0, Math.min(255, g));
+    b = Math.max(0, Math.min(255, b));
+    return '#' + ((1<<24) + (r<<16) + (g<<8) + b).toString(16).slice(1);
+  }
+
+  function sbCreateBurstEffect(x, y, color) {
+    var particles = [];
+    for (var i = 0; i < 20; i++) {
+      var angle = Math.random() * Math.PI * 2;
+      var speed = 1 + Math.random() * 3;
+      particles.push({
+        x: x, y: y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+        size: 1 + Math.random() * 2, alpha: 0.5 + Math.random() * 0.5, color: color
+      });
+    }
+    sbClickEffects.push({ x: x, y: y, type: 'burst', life: 1200, maxLife: 1200, particles: particles });
+    sbClickEffects.push({ x: x, y: y, type: 'wave', life: 800, maxLife: 800, radius: 80, color: color });
+  }
+
+  function sbInitAudio() {
+    if (!sbAudioCtx) {
+      try { sbAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+    }
+    if (sbAudioCtx && sbAudioCtx.state === 'suspended') sbAudioCtx.resume();
+  }
+
+  function sbPlaySound(type) {
+    if (!sbAudioCtx) sbInitAudio();
+    if (!sbAudioCtx) return;
+    var def = SB_ELEMENT_TYPES[type];
+    if (!def) return;
+    var osc = sbAudioCtx.createOscillator();
+    var gain = sbAudioCtx.createGain();
+    osc.type = def.soundType;
+    osc.frequency.setValueAtTime(def.soundFreq, sbAudioCtx.currentTime);
+    if (type === 'meteor') osc.frequency.exponentialRampToValueAtTime(def.soundFreq * 0.5, sbAudioCtx.currentTime + 0.5);
+    gain.gain.setValueAtTime(0.1, sbAudioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, sbAudioCtx.currentTime + 0.8);
+    osc.connect(gain);
+    gain.connect(sbAudioCtx.destination);
+    osc.start();
+    osc.stop(sbAudioCtx.currentTime + 0.8);
+  }
+
+  function sbPlayDeleteSound() {
+    if (!sbAudioCtx) sbInitAudio();
+    if (!sbAudioCtx) return;
+    var osc = sbAudioCtx.createOscillator();
+    var gain = sbAudioCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(600, sbAudioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(80, sbAudioCtx.currentTime + 0.5);
+    gain.gain.setValueAtTime(0.08, sbAudioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, sbAudioCtx.currentTime + 0.5);
+    osc.connect(gain);
+    gain.connect(sbAudioCtx.destination);
+    osc.start();
+    osc.stop(sbAudioCtx.currentTime + 0.5);
+  }
+
+  function sbPlayConnectSound() {
+    if (!sbAudioCtx) sbInitAudio();
+    if (!sbAudioCtx) return;
+    var osc = sbAudioCtx.createOscillator();
+    var gain = sbAudioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(523, sbAudioCtx.currentTime);
+    osc.frequency.setValueAtTime(659, sbAudioCtx.currentTime + 0.1);
+    osc.frequency.setValueAtTime(784, sbAudioCtx.currentTime + 0.2);
+    gain.gain.setValueAtTime(0.06, sbAudioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, sbAudioCtx.currentTime + 0.4);
+    osc.connect(gain);
+    gain.connect(sbAudioCtx.destination);
+    osc.start();
+    osc.stop(sbAudioCtx.currentTime + 0.4);
+  }
+
+  function sbPlaySupernovaSound() {
+    if (!sbAudioCtx) sbInitAudio();
+    if (!sbAudioCtx) return;
+    var osc = sbAudioCtx.createOscillator();
+    var gain = sbAudioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(100, sbAudioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(20, sbAudioCtx.currentTime + 2);
+    gain.gain.setValueAtTime(0.2, sbAudioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, sbAudioCtx.currentTime + 2);
+    osc.connect(gain);
+    gain.connect(sbAudioCtx.destination);
+    osc.start();
+    osc.stop(sbAudioCtx.currentTime + 2);
+    try {
+      var noiseBuffer = sbAudioCtx.createBuffer(1, sbAudioCtx.sampleRate * 2, sbAudioCtx.sampleRate);
+      var data = noiseBuffer.getChannelData(0);
+      for (var i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      var noise = sbAudioCtx.createBufferSource();
+      noise.buffer = noiseBuffer;
+      var ng = sbAudioCtx.createGain();
+      ng.gain.setValueAtTime(0.15, sbAudioCtx.currentTime);
+      ng.gain.exponentialRampToValueAtTime(0.001, sbAudioCtx.currentTime + 1.5);
+      var filter = sbAudioCtx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(2000, sbAudioCtx.currentTime);
+      filter.frequency.exponentialRampToValueAtTime(100, sbAudioCtx.currentTime + 1.5);
+      noise.connect(filter);
+      filter.connect(ng);
+      ng.connect(sbAudioCtx.destination);
+      noise.start();
+      noise.stop(sbAudioCtx.currentTime + 2);
+    } catch(e) {}
+  }
+
+  function sbInitCanvas() {
+    sbCv = document.getElementById('sandboxCanvas');
+    sbCtx = sbCv.getContext('2d');
+    sbDpr = Math.min(window.devicePixelRatio || 1, 2);
+    sbW = window.innerWidth;
+    sbH = window.innerHeight;
+    sbCv.width = sbW * sbDpr;
+    sbCv.height = sbH * sbDpr;
+    sbCtx.setTransform(sbDpr, 0, 0, sbDpr, 0, 0);
+    sandboxBgStars = [];
+    for (var i = 0; i < 200; i++) {
+      sandboxBgStars.push({
+        x: Math.random() * sbW, y: Math.random() * sbH,
+        r: 0.3 + Math.random() * 0.8,
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.5 + Math.random() * 1.5
+      });
+    }
+  }
+
+  function sbCreateElement(x, y) {
+    var type = sandboxTool;
+    if (type === 'connect' || type === 'erase') return null;
+    var def = SB_ELEMENT_TYPES[type];
+    if (!def) return null;
+    var id = ++sandboxIdCounter;
+    var names = SB_POETIC_NAMES[type];
+    var name = names[Math.floor(Math.random() * names.length)] + (id);
+    var sizeVal = parseInt(document.getElementById('sbSize').value) || def.defaultSize;
+    var el = {
+      id: id, type: type, x: x, y: y,
+      brightness: parseInt(document.getElementById('sbBrightness').value),
+      size: sizeVal,
+      color: document.getElementById('sbColor').value || def.defaultColor,
+      name: name,
+      orbitAngle: Math.random() * Math.PI * 2,
+      pulsePhase: Math.random() * Math.PI * 2,
+      pulseSpeed: 0.5 + Math.random(),
+      nebulaPhase: 0,
+      diffusionRate: 0.001 + Math.random() * 0.002
+    };
+    sandboxElements.push(el);
+    sbPlaySound(type);
+    sbCreateBurstEffect(x, y, el.color);
+    sbEpicEvents.push({ type: 'gravityWave', x: x, y: y, life: 800, maxLife: 800, radius: 200, color: el.color });
+    return el;
+  }
+
+  function sbRender(ts) {
+    sbCtx.clearRect(0, 0, sbW, sbH);
+
+    var grad = sbCtx.createRadialGradient(sbW / 2, sbH / 2, 0, sbW / 2, sbH / 2, Math.max(sbW, sbH) * 0.8);
+    grad.addColorStop(0, 'rgba(10, 12, 18, 1)');
+    grad.addColorStop(0.5, 'rgba(8, 8, 14, 1)');
+    grad.addColorStop(1, 'rgba(6, 6, 11, 1)');
+    sbCtx.fillStyle = grad;
+    sbCtx.fillRect(0, 0, sbW, sbH);
+
+    for (var i = 0; i < sandboxBgStars.length; i++) {
+      var bg = sandboxBgStars[i];
+      bg.x += Math.sin(ts * 0.0001 + bg.phase) * 0.02;
+      bg.y += Math.cos(ts * 0.00008 + bg.phase * 1.3) * 0.015;
+      if (bg.x < 0) bg.x = sbW; if (bg.x > sbW) bg.x = 0;
+      if (bg.y < 0) bg.y = sbH; if (bg.y > sbH) bg.y = 0;
+      var tw = 0.3 + 0.7 * Math.abs(Math.sin(ts * 0.001 * bg.speed + bg.phase));
+      var bgColor = (bg.phase < Math.PI) ? '#fff' : (bg.phase < Math.PI * 1.5 ? '#a0c0e0' : '#e0c8a0');
+      sbCtx.globalAlpha = tw * 0.3;
+      sbCtx.fillStyle = bgColor;
+      sbCtx.beginPath();
+      sbCtx.arc(bg.x, bg.y, bg.r, 0, Math.PI * 2);
+      sbCtx.fill();
+    }
+    sbCtx.globalAlpha = 1;
+
+    for (var i = 0; i < sandboxElements.length; i++) {
+      var el = sandboxElements[i];
+      if (el.type === 'planet' && !sandboxDragging) {
+        var targetStar = null;
+        if (el._orbitStarId != null) {
+          var locked = sbFindElement(el._orbitStarId);
+          if (locked && locked.type === 'star') {
+            targetStar = locked;
+          } else {
+            el._orbitStarId = null;
+          }
+        }
+        if (!targetStar) {
+          var nearestDist = 350;
+          for (var j = 0; j < sandboxElements.length; j++) {
+            if (i === j || sandboxElements[j].type !== 'star') continue;
+            var dx = el.x - sandboxElements[j].x, dy = el.y - sandboxElements[j].y;
+            var d = Math.sqrt(dx * dx + dy * dy);
+            if (d < nearestDist && d > 40) { nearestDist = d; targetStar = sandboxElements[j]; }
+          }
+        }
+        if (targetStar) {
+          if (!el._isOrbiting) {
+            el._orbitStarId = targetStar.id;
+            el._orbitRadius = targetStar === sandboxElements[i] ? 80 : Math.sqrt(Math.pow(el.x - targetStar.x, 2) + Math.pow(el.y - targetStar.y, 2));
+            el._orbitAngle = Math.atan2(el.y - targetStar.y, el.x - targetStar.x);
+            el._orbitEccentricity = 0.5 + Math.random() * 0.2;
+          }
+          el._orbitAngle += (0.003 + 0.015 / Math.max(el._orbitRadius, 40));
+          var orbitR = el._orbitRadius || 80;
+          var ecc = el._orbitEccentricity || 0.6;
+          el.x = targetStar.x + Math.cos(el._orbitAngle) * orbitR;
+          el.y = targetStar.y + Math.sin(el._orbitAngle) * orbitR * ecc;
+          el._isOrbiting = true;
+          el._orbitStarRef = targetStar;
+          if (!el._trail) el._trail = [];
+          el._trail.push({ x: el.x, y: el.y, alpha: 0.4 });
+          if (el._trail.length > 50) el._trail.shift();
+          for (var tt = 0; tt < el._trail.length; tt++) {
+            el._trail[tt].alpha *= 0.96;
+          }
+          el._trail = el._trail.filter(function(p) { return p.alpha > 0.02; });
+        } else {
+          el._isOrbiting = false;
+          el._orbitStarRef = null;
+          if (el._trail) el._trail = [];
+        }
+      } else {
+        el._isOrbiting = false;
+        el._orbitStarRef = null;
+        if (el._trail) el._trail = [];
+      }
+    }
+
+    for (var i = 0; i < sandboxElements.length; i++) {
+      for (var j = i + 1; j < sandboxElements.length; j++) {
+        var a = sandboxElements[i], b = sandboxElements[j];
+        var dx = a.x - b.x, dy = a.y - b.y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 130 && dist > 15) {
+          var alpha = (1 - dist / 130) * 0.25;
+          var pulse = 0.5 + 0.5 * Math.sin(ts * 0.003 + a.pulsePhase);
+          sbCtx.beginPath();
+          sbCtx.moveTo(a.x, a.y);
+          sbCtx.lineTo(b.x, b.y);
+          sbCtx.strokeStyle = 'rgba(200, 170, 120, ' + (alpha * pulse) + ')';
+          sbCtx.lineWidth = 0.6;
+          sbCtx.setLineDash([2, 3]);
+          sbCtx.lineDashOffset = -(ts * 0.01) % 5;
+          sbCtx.stroke();
+          sbCtx.setLineDash([]);
+        }
+      }
+    }
+
+    for (var i = 0; i < sandboxElements.length; i++) {
+      var el = sandboxElements[i];
+      if (el._isOrbiting && el._orbitStarRef) {
+        var star = el._orbitStarRef;
+        var orbitR = el._orbitRadius || 80;
+        var ecc = el._orbitEccentricity || 0.6;
+        sbCtx.globalAlpha = 0.08;
+        sbCtx.strokeStyle = el.color;
+        sbCtx.lineWidth = 0.6;
+        sbCtx.setLineDash([4, 6]);
+        sbCtx.beginPath();
+        sbCtx.ellipse(star.x, star.y, orbitR, orbitR * ecc, 0, 0, Math.PI * 2);
+        sbCtx.stroke();
+        sbCtx.setLineDash([]);
+        if (el._trail && el._trail.length > 2) {
+          for (var tt = 1; tt < el._trail.length; tt++) {
+            var tp = el._trail[tt];
+            sbCtx.globalAlpha = tp.alpha * 0.5;
+            sbCtx.fillStyle = el.color;
+            sbCtx.beginPath();
+            sbCtx.arc(tp.x, tp.y, el.size * 0.5 * tp.alpha, 0, Math.PI * 2);
+            sbCtx.fill();
+          }
+        }
+      }
+    }
+    sbCtx.globalAlpha = 1;
+
+    for (var i = 0; i < sandboxConnections.length; i++) {
+      var conn = sandboxConnections[i];
+      var fromEl = sbFindElement(conn.fromId);
+      var toEl = sbFindElement(conn.toId);
+      if (!fromEl || !toEl) continue;
+      var isHl = (sandboxSelectedId === conn.fromId || sandboxSelectedId === conn.toId);
+      sbCtx.beginPath();
+      sbCtx.moveTo(fromEl.x, fromEl.y);
+      sbCtx.lineTo(toEl.x, toEl.y);
+      sbCtx.strokeStyle = isHl ? 'rgba(200, 170, 120, 0.55)' : 'rgba(200, 170, 120, 0.15)';
+      sbCtx.lineWidth = isHl ? 1.5 : 0.8;
+      sbCtx.stroke();
+    }
+
+    if (sandboxTool === 'connect' && sandboxConnectFrom !== null) {
+      var fromEl = sbFindElement(sandboxConnectFrom);
+      if (fromEl) {
+        var hoverTarget = sbFindElementAt(sandboxMouseX, sandboxMouseY);
+        if (hoverTarget && hoverTarget.id !== sandboxConnectFrom) {
+          sbCtx.beginPath();
+          sbCtx.moveTo(fromEl.x, fromEl.y);
+          sbCtx.lineTo(hoverTarget.x, hoverTarget.y);
+          sbCtx.strokeStyle = 'rgba(200, 170, 120, 0.45)';
+          sbCtx.lineWidth = 1.2;
+          sbCtx.setLineDash([4, 4]);
+          sbCtx.lineDashOffset = -(ts * 0.02) % 8;
+          sbCtx.stroke();
+          sbCtx.setLineDash([]);
+        }
+      }
+    }
+
+    for (var i = sbClickEffects.length - 1; i >= 0; i--) {
+      var eff = sbClickEffects[i];
+      eff.life -= 16;
+      if (eff.life <= 0) { sbClickEffects.splice(i, 1); continue; }
+      var progress = 1 - eff.life / eff.maxLife;
+      if (eff.type === 'burst') {
+        for (var p = 0; p < eff.particles.length; p++) {
+          var pt = eff.particles[p];
+          pt.x += pt.vx; pt.y += pt.vy;
+          pt.vx *= 0.97; pt.vy *= 0.97;
+          sbCtx.globalAlpha = (1 - progress) * pt.alpha;
+          sbCtx.fillStyle = pt.color;
+          sbCtx.beginPath();
+          sbCtx.arc(pt.x, pt.y, pt.size * (1 - progress * 0.5), 0, Math.PI * 2);
+          sbCtx.fill();
+        }
+      } else if (eff.type === 'wave') {
+        for (var w = 0; w < 3; w++) {
+          var waveR = progress * (eff.radius * (1 + w * 0.5));
+          var waveAlpha = (1 - progress) * 0.35 / (1 + w * 0.5);
+          sbCtx.globalAlpha = waveAlpha;
+          sbCtx.strokeStyle = eff.color;
+          sbCtx.lineWidth = 2 - w * 0.5;
+          sbCtx.beginPath();
+          sbCtx.arc(eff.x, eff.y, waveR, 0, Math.PI * 2);
+          sbCtx.stroke();
+        }
+      }
+    }
+    sbCtx.globalAlpha = 1;
+
+    for (var i = sbStardustTrail.length - 1; i >= 0; i--) {
+      var dust = sbStardustTrail[i];
+      dust.life -= 16;
+      if (dust.life <= 0) { sbStardustTrail.splice(i, 1); continue; }
+      var dp = 1 - dust.life / dust.maxLife;
+      sbCtx.globalAlpha = (1 - dp) * 0.25;
+      sbCtx.fillStyle = '#c8aa78';
+      sbCtx.beginPath();
+      sbCtx.arc(dust.x, dust.y, dust.size * (1 - dp * 0.5), 0, Math.PI * 2);
+      sbCtx.fill();
+    }
+    sbCtx.globalAlpha = 1;
+    if (sbStardustTrail.length > 100) sbStardustTrail.splice(0, sbStardustTrail.length - 100);
+
+    for (var i = sbEpicEvents.length - 1; i >= 0; i--) {
+      var ev = sbEpicEvents[i];
+      ev.life -= 16;
+      if (ev.life <= 0) { sbEpicEvents.splice(i, 1); continue; }
+      var ep = 1 - ev.life / ev.maxLife;
+      if (ev.type === 'supernova') {
+        sbCtx.globalAlpha = (1 - ep) * 0.9;
+        sbCtx.fillStyle = '#fff';
+        sbCtx.beginPath();
+        sbCtx.arc(ev.x, ev.y, 5 + ep * 180, 0, Math.PI * 2);
+        sbCtx.fill();
+        var snGrad = sbCtx.createRadialGradient(ev.x, ev.y, 0, ev.x, ev.y, 250 * ep);
+        snGrad.addColorStop(0, 'rgba(255,255,255,0.6)');
+        snGrad.addColorStop(0.3, 'rgba(200,170,120,0.4)');
+        snGrad.addColorStop(0.7, 'rgba(180,140,180,0.15)');
+        snGrad.addColorStop(1, 'transparent');
+        sbCtx.globalAlpha = (1 - ep) * 0.5;
+        sbCtx.fillStyle = snGrad;
+        sbCtx.beginPath();
+        sbCtx.arc(ev.x, ev.y, 250 * ep, 0, Math.PI * 2);
+        sbCtx.fill();
+        for (var p = 0; p < 40; p++) {
+          var angle = (p / 40) * Math.PI * 2;
+          var dist = ep * 220 * (0.5 + Math.random() * 0.5);
+          var px = ev.x + Math.cos(angle) * dist;
+          var py = ev.y + Math.sin(angle) * dist;
+          sbCtx.globalAlpha = (1 - ep) * 0.6;
+          sbCtx.fillStyle = (p % 3 === 0) ? '#fff' : '#c8aa78';
+          sbCtx.beginPath();
+          sbCtx.arc(px, py, 2 * (1 - ep), 0, Math.PI * 2);
+          sbCtx.fill();
+        }
+      } else if (ev.type === 'gravityWave') {
+        for (var w = 0; w < 5; w++) {
+          var wp = (ep + w * 0.08) % 1;
+          var wr = wp * 300;
+          var wa = (1 - wp) * 0.25;
+          sbCtx.globalAlpha = wa;
+          sbCtx.strokeStyle = ev.color;
+          sbCtx.lineWidth = 1.5 - w * 0.2;
+          sbCtx.beginPath();
+          sbCtx.arc(ev.x, ev.y, wr, 0, Math.PI * 2);
+          sbCtx.stroke();
+        }
+      }
+    }
+    sbCtx.globalAlpha = 1;
+
+    for (var i = 0; i < sandboxElements.length; i++) {
+      var el = sandboxElements[i];
+      var type = SB_ELEMENT_TYPES[el.type];
+      var isSelected = (el.id === sandboxSelectedId);
+      var br = el.brightness / 100;
+
+      sbCtx.save();
+
+      if (el.type === 'star') {
+        var breathe = 1 + 0.15 * Math.sin(ts * 0.002 + el.pulsePhase);
+        sbCtx.shadowColor = el.color;
+        sbCtx.shadowBlur = type.glowSize * br;
+        sbCtx.globalAlpha = br * 0.06;
+        sbCtx.fillStyle = el.color;
+        sbCtx.beginPath(); sbCtx.arc(el.x, el.y, el.size * 8 * breathe, 0, Math.PI * 2); sbCtx.fill();
+        sbCtx.globalAlpha = br * 0.12;
+        sbCtx.beginPath(); sbCtx.arc(el.x, el.y, el.size * 5, 0, Math.PI * 2); sbCtx.fill();
+        sbCtx.globalAlpha = br * 0.25;
+        sbCtx.beginPath(); sbCtx.arc(el.x, el.y, el.size * 3, 0, Math.PI * 2); sbCtx.fill();
+        sbCtx.globalAlpha = 0.9;
+        sbCtx.fillStyle = el.color;
+        sbCtx.beginPath(); sbCtx.arc(el.x, el.y, el.size, 0, Math.PI * 2); sbCtx.fill();
+        sbCtx.globalAlpha = br;
+        sbCtx.fillStyle = '#fff';
+        sbCtx.beginPath(); sbCtx.arc(el.x, el.y, el.size * 0.4, 0, Math.PI * 2); sbCtx.fill();
+        if (br > 0.3 && el.size > 1.5) {
+          var flareAngle = ts * 0.0005;
+          for (var f = 0; f < 4; f++) {
+            var fa = flareAngle + f * Math.PI / 2;
+            var flen = el.size * (2 + Math.sin(ts * 0.003 + f) * 0.5);
+            sbCtx.globalAlpha = br * 0.3;
+            sbCtx.strokeStyle = el.color;
+            sbCtx.lineWidth = 0.5;
+            sbCtx.beginPath();
+            sbCtx.moveTo(el.x - Math.cos(fa) * flen, el.y - Math.sin(fa) * flen);
+            sbCtx.lineTo(el.x + Math.cos(fa) * flen, el.y + Math.sin(fa) * flen);
+            sbCtx.stroke();
+          }
+        }
+      } else if (el.type === 'planet') {
+        sbCtx.shadowColor = el.color;
+        sbCtx.shadowBlur = type.glowSize * br;
+        sbCtx.globalAlpha = 0.7 + br * 0.3;
+        sbCtx.fillStyle = el.color;
+        sbCtx.beginPath(); sbCtx.arc(el.x, el.y, el.size, 0, Math.PI * 2); sbCtx.fill();
+        var lightGrad = sbCtx.createRadialGradient(el.x - el.size * 0.3, el.y - el.size * 0.3, 0, el.x, el.y, el.size);
+        lightGrad.addColorStop(0, 'rgba(255,255,255,0.25)');
+        lightGrad.addColorStop(0.5, 'rgba(255,255,255,0.03)');
+        lightGrad.addColorStop(1, 'rgba(0,0,0,0.25)');
+        sbCtx.globalAlpha = 1;
+        sbCtx.fillStyle = lightGrad;
+        sbCtx.beginPath(); sbCtx.arc(el.x, el.y, el.size, 0, Math.PI * 2); sbCtx.fill();
+        if (el.size > 3) {
+          var ringAngle = ts * 0.0001;
+          sbCtx.globalAlpha = 0.25 + br * 0.1;
+          sbCtx.strokeStyle = el.color;
+          sbCtx.lineWidth = 1.2;
+          sbCtx.beginPath();
+          sbCtx.ellipse(el.x, el.y, el.size * 2, el.size * 0.6, 0.3 + ringAngle, 0, Math.PI * 2);
+          sbCtx.stroke();
+          sbCtx.globalAlpha = 0.1;
+          sbCtx.beginPath();
+          sbCtx.ellipse(el.x, el.y, el.size * 1.5, el.size * 0.45, 0.3 + ringAngle, 0, Math.PI * 2);
+          sbCtx.stroke();
+        }
+      } else if (el.type === 'nebula') {
+        el.nebulaPhase = (el.nebulaPhase || 0) + el.diffusionRate;
+        var breath = 0.15 * Math.sin(el.nebulaPhase * 0.8);
+        var diffScale = 1 + breath;
+        var nebSize = el.size * diffScale;
+        var nebColors = [el.color, shiftColor(el.color, 30), shiftColor(el.color, -30)];
+        for (var layer = 0; layer < 3; layer++) {
+          var layerSize = nebSize * (1 + layer * 0.4);
+          for (var c = 0; c < 8; c++) {
+            var angle = (c / 8) * Math.PI * 2 + ts * 0.0001 * (layer + 1);
+            var dist = nebSize * 0.25 * (1 + 0.3 * Math.sin(ts * 0.0008 + c));
+            var cx = el.x + Math.cos(angle) * dist;
+            var cy = el.y + Math.sin(angle) * dist;
+            sbCtx.globalAlpha = br * 0.035;
+            sbCtx.fillStyle = nebColors[layer];
+            sbCtx.shadowColor = nebColors[layer];
+            sbCtx.shadowBlur = type.glowSize * br * 0.5;
+            sbCtx.beginPath();
+            sbCtx.arc(cx, cy, layerSize * (0.3 + Math.random() * 0.35), 0, Math.PI * 2);
+            sbCtx.fill();
+          }
+        }
+        sbCtx.shadowBlur = 0;
+        sbCtx.globalAlpha = br * 0.12;
+        sbCtx.shadowColor = el.color;
+        sbCtx.shadowBlur = type.glowSize;
+        sbCtx.beginPath(); sbCtx.arc(el.x, el.y, nebSize * 0.3, 0, Math.PI * 2); sbCtx.fill();
+        sbCtx.shadowBlur = 0;
+      } else if (el.type === 'meteor') {
+        var headPulse = 1 + 0.3 * Math.sin(ts * 0.005);
+        sbCtx.shadowColor = el.color;
+        sbCtx.shadowBlur = type.glowSize * br * headPulse;
+        sbCtx.globalAlpha = 0.9;
+        sbCtx.fillStyle = el.color;
+        sbCtx.beginPath(); sbCtx.arc(el.x, el.y, el.size * headPulse, 0, Math.PI * 2); sbCtx.fill();
+        sbCtx.globalAlpha = br;
+        sbCtx.fillStyle = '#fff';
+        sbCtx.beginPath(); sbCtx.arc(el.x, el.y, el.size * 0.4, 0, Math.PI * 2); sbCtx.fill();
+        var trailLen = el.size * 12;
+        for (var t = 0; t < 6; t++) {
+          var tAlpha = br * (1 - t / 6) * 0.5;
+          var tSize = el.size * (1 - t * 0.12);
+          var tx = el.x - (trailLen / 6) * t;
+          var ty = el.y + (trailLen * 0.3 / 6) * t;
+          sbCtx.globalAlpha = tAlpha;
+          sbCtx.fillStyle = el.color;
+          sbCtx.beginPath();
+          sbCtx.arc(tx + (Math.random() - 0.5) * t, ty + (Math.random() - 0.5) * t, tSize, 0, Math.PI * 2);
+          sbCtx.fill();
+        }
+        var tailGrad = sbCtx.createLinearGradient(el.x, el.y, el.x - trailLen, el.y + trailLen * 0.3);
+        tailGrad.addColorStop(0, el.color);
+        tailGrad.addColorStop(0.3, 'rgba(200, 200, 255, 0.3)');
+        tailGrad.addColorStop(1, 'transparent');
+        sbCtx.globalAlpha = br * 0.5;
+        sbCtx.strokeStyle = tailGrad;
+        sbCtx.lineWidth = el.size * 0.4;
+        sbCtx.lineCap = 'round';
+        sbCtx.beginPath();
+        sbCtx.moveTo(el.x, el.y);
+        sbCtx.lineTo(el.x - trailLen, el.y + trailLen * 0.3);
+        sbCtx.stroke();
+        sbCtx.shadowBlur = 0;
+      }
+
+      sbCtx.restore();
+
+      if (isSelected) {
+        sbCtx.beginPath();
+        sbCtx.arc(el.x, el.y, el.size + 8, 0, Math.PI * 2);
+        sbCtx.strokeStyle = 'rgba(200, 170, 120, 0.55)';
+        sbCtx.lineWidth = 1;
+        sbCtx.setLineDash([3, 3]);
+        sbCtx.lineDashOffset = -(ts * 0.03) % 6;
+        sbCtx.stroke();
+        sbCtx.setLineDash([]);
+      }
+
+      var hasConn = false;
+      for (var c = 0; c < sandboxConnections.length; c++) {
+        if (sandboxConnections[c].fromId === el.id || sandboxConnections[c].toId === el.id) { hasConn = true; break; }
+      }
+      if (hasConn) {
+        var cpulse = 0.5 + 0.5 * Math.sin(ts * 0.002 * el.pulseSpeed + el.pulsePhase);
+        sbCtx.globalAlpha = cpulse * 0.08;
+        sbCtx.fillStyle = el.color;
+        sbCtx.beginPath();
+        sbCtx.arc(el.x, el.y, el.size * 6, 0, Math.PI * 2);
+        sbCtx.fill();
+        sbCtx.globalAlpha = 1;
+      }
+
+      if (el.name) {
+        sbCtx.globalAlpha = 0.4;
+        sbCtx.fillStyle = '#a09890';
+        sbCtx.font = '12px "PingFang SC", "Noto Serif SC", "STSong", "Songti SC", serif';
+        sbCtx.textAlign = 'center';
+        sbCtx.fillText(el.name, el.x, el.y + el.size + 14);
+        sbCtx.globalAlpha = 1;
+      }
+    }
+  }
+
+  function sbOnMouseDown(e) {
+    var rect = sbCv.getBoundingClientRect();
+    var x = e.clientX - rect.left;
+    var y = e.clientY - rect.top;
+
+    if (sandboxTool === 'connect') {
+      var target = sbFindElementAt(x, y);
+      if (target) {
+        if (sandboxConnectFrom === null) {
+          sandboxConnectFrom = target.id;
+          sandboxSelectedId = target.id;
+        } else if (target.id !== sandboxConnectFrom) {
+          var exists = false;
+          for (var i = 0; i < sandboxConnections.length; i++) {
+            var c = sandboxConnections[i];
+            if ((c.fromId === sandboxConnectFrom && c.toId === target.id) || (c.fromId === target.id && c.toId === sandboxConnectFrom)) { exists = true; break; }
+          }
+          if (!exists) {
+            sandboxConnections.push({ fromId: sandboxConnectFrom, toId: target.id });
+            sbPlayConnectSound();
+            sbCreateBurstEffect((sbFindElement(sandboxConnectFrom).x + target.x) / 2, (sbFindElement(sandboxConnectFrom).y + target.y) / 2, '#c8aa78');
+          }
+          sandboxConnectFrom = null;
+          sandboxSelectedId = null;
+        }
+      } else {
+        sandboxConnectFrom = null;
+        sandboxSelectedId = null;
+      }
+      return;
+    }
+
+    if (sandboxTool === 'erase') {
+      var target = sbFindElementAt(x, y);
+      if (target) {
+        sbPlayDeleteSound();
+        sbCreateBurstEffect(target.x, target.y, '#ff6666');
+        var idx = sandboxElements.indexOf(target);
+        if (idx >= 0) sandboxElements.splice(idx, 1);
+        sandboxConnections = sandboxConnections.filter(function(c) { return c.fromId !== target.id && c.toId !== target.id; });
+        if (sandboxSelectedId === target.id) sandboxSelectedId = null;
+        if (sandboxConnectFrom === target.id) sandboxConnectFrom = null;
+      }
+      return;
+    }
+
+    var existing = sbFindElementAt(x, y);
+    if (existing) {
+      sandboxDragging = true;
+      sandboxDragElement = existing;
+      sandboxDragOffX = x - existing.x;
+      sandboxDragOffY = y - existing.y;
+      sandboxSelectedId = existing.id;
+    } else {
+      var newEl = sbCreateElement(x, y);
+      if (newEl) sandboxSelectedId = newEl.id;
+    }
+  }
+
+  function sbOnMouseMove(e) {
+    var rect = sbCv.getBoundingClientRect();
+    sandboxMouseX = e.clientX - rect.left;
+    sandboxMouseY = e.clientY - rect.top;
+    if (sandboxDragging && sandboxDragElement) {
+      sandboxDragElement.x = sandboxMouseX - sandboxDragOffX;
+      sandboxDragElement.y = sandboxMouseY - sandboxDragOffY;
+    }
+    if (!sandboxDragging) {
+      sbStardustTrail.push({
+        x: sandboxMouseX, y: sandboxMouseY,
+        life: 600, maxLife: 600,
+        size: 1 + Math.random() * 1.5,
+        color: 'rgba(200, 170, 120, 0.5)'
+      });
+    }
+  }
+
+  function sbOnMouseUp() {
+    sandboxDragging = false;
+    sandboxDragElement = null;
+  }
+
+  function sbBindEvents() {
+    sbCv.addEventListener('mousedown', sbOnMouseDown);
+    window.addEventListener('mousemove', sbOnMouseMove);
+    window.addEventListener('mouseup', sbOnMouseUp);
+    sbCv.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      var t = e.touches[0];
+      sbOnMouseDown({ clientX: t.clientX, clientY: t.clientY });
+    }, { passive: false });
+    window.addEventListener('touchmove', function(e) {
+      if (!e.touches.length) return;
+      var t = e.touches[0];
+      sandboxMouseX = t.clientX - sbCv.getBoundingClientRect().left;
+      sandboxMouseY = t.clientY - sbCv.getBoundingClientRect().top;
+      if (sandboxDragging && sandboxDragElement) {
+        sandboxDragElement.x = sandboxMouseX - sandboxDragOffX;
+        sandboxDragElement.y = sandboxMouseY - sandboxDragOffY;
+      }
+    }, { passive: true });
+    window.addEventListener('touchend', function() {
+      sbOnMouseUp();
+    });
+  }
+
+  function sbSetTool(tool) {
+    sandboxTool = tool;
+    sandboxConnectFrom = null;
+    document.querySelectorAll('#sandboxTools .tool-btn').forEach(function(btn) {
+      btn.classList.toggle('active', btn.dataset.tool === tool);
+    });
+    var panel = document.getElementById('sbPropertyPanel');
+    panel.classList.toggle('hidden', tool === 'connect' || tool === 'erase');
+    if (tool === 'connect') sbCv.style.cursor = 'cell';
+    else if (tool === 'erase') sbCv.style.cursor = 'not-allowed';
+    else sbCv.style.cursor = 'crosshair';
+    var hints = {
+      star: '点击放置恒星', planet: '点击放置行星（靠近恒星会环绕）',
+      nebula: '点击放置星云（会缓慢扩散）', meteor: '点击放置流星',
+      connect: '点击第一个天体，再点击第二个以连线',
+      erase: '点击天体以删除'
+    };
+    document.getElementById('sbHint').textContent = hints[tool] || '';
+  }
+
+  function sbHandleKeydown(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === '1') { sbSetTool('star'); e.preventDefault(); }
+    else if (e.key === '2') { sbSetTool('planet'); e.preventDefault(); }
+    else if (e.key === '3') { sbSetTool('nebula'); e.preventDefault(); }
+    else if (e.key === '4') { sbSetTool('meteor'); e.preventDefault(); }
+    else if (e.key === '5') { sbSetTool('connect'); e.preventDefault(); }
+    else if (e.key === '6') { sbSetTool('erase'); e.preventDefault(); }
+    else if (e.key === 'Escape') {
+      sandboxSelectedId = null; sandboxConnectFrom = null; e.preventDefault();
+    }
+    else if ((e.key === 'Delete' || e.key === 'Backspace') && sandboxSelectedId !== null) {
+      var target = sbFindElement(sandboxSelectedId);
+      if (target) {
+        var idx = sandboxElements.indexOf(target);
+        if (idx >= 0) sandboxElements.splice(idx, 1);
+        sandboxConnections = sandboxConnections.filter(function(c) { return c.fromId !== target.id && c.toId !== target.id; });
+        sandboxSelectedId = null;
+        if (sandboxConnectFrom === target.id) sandboxConnectFrom = null;
+      }
+      e.preventDefault();
+    }
+    else if ((e.key === 'n' || e.key === 'N') && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault(); sbTriggerSupernova();
+    }
+  }
+
+  function sbTriggerSupernova() {
+    var cx = sbW / 2 + (Math.random() - 0.5) * sbW * 0.4;
+    var cy = sbH / 2 + (Math.random() - 0.5) * sbH * 0.4;
+    sbEpicEvents.push({ type: 'supernova', x: cx, y: cy, life: 2500, maxLife: 2500, radius: 250, color: '#c8aa78' });
+    sbPlaySupernovaSound();
+    var blastRadius = 150;
+    for (var i = sandboxElements.length - 1; i >= 0; i--) {
+      var el = sandboxElements[i];
+      var dx = el.x - cx, dy = el.y - cy;
+      if (Math.sqrt(dx*dx + dy*dy) < blastRadius && Math.random() < 0.5) {
+        sbCreateBurstEffect(el.x, el.y, '#ff8844');
+        sandboxConnections = sandboxConnections.filter(function(c) { return c.fromId !== el.id && c.toId !== el.id; });
+        sandboxElements.splice(i, 1);
+        if (sandboxSelectedId === el.id) sandboxSelectedId = null;
+      }
+    }
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  function drawDivider(ctx, x, y, w) {
+    var g = ctx.createLinearGradient(x, 0, x + w, 0);
+    g.addColorStop(0, 'transparent');
+    g.addColorStop(0.5, 'rgba(200,170,120,0.15)');
+    g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g;
+    ctx.fillRect(x, y + 8, w, 1);
+  }
+
+  function wrapText(text, maxWidth, ctx) {
+    if (!ctx) {
+      ctx = document.createElement('canvas').getContext('2d');
+    }
+    ctx.font = '13px "PingFang SC", "Noto Serif SC", sans-serif';
+    var chars = text.split('');
+    var lines = [];
+    var current = '';
+    for (var i = 0; i < chars.length; i++) {
+      var test = current + chars[i];
+      if (ctx.measureText(test).width > maxWidth && current) {
+        lines.push(current);
+        current = chars[i];
+      } else {
+        current = test;
+      }
+    }
+    if (current) lines.push(current);
+    return lines;
+  }
+
+  function sbRenderToCanvas(canvas, w, h) {
+    var rctx = canvas.getContext('2d');
+    rctx.clearRect(0, 0, w, h);
+    var grad = rctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) * 0.8);
+    grad.addColorStop(0, 'rgba(10, 12, 18, 1)');
+    grad.addColorStop(0.5, 'rgba(8, 8, 14, 1)');
+    grad.addColorStop(1, 'rgba(6, 6, 11, 1)');
+    rctx.fillStyle = grad;
+    rctx.fillRect(0, 0, w, h);
+    var sx = w / sbW, sy = h / sbH;
+
+    for (var i = 0; i < 120; i++) {
+      var bx = Math.random() * w, by = Math.random() * h;
+      var br2 = 0.3 + Math.random() * 0.8;
+      var twinkle = 0.2 + Math.random() * 0.5;
+      rctx.globalAlpha = twinkle;
+      rctx.fillStyle = Math.random() > 0.7 ? '#a0c0e0' : '#fff';
+      rctx.beginPath(); rctx.arc(bx, by, br2, 0, Math.PI * 2); rctx.fill();
+    }
+    rctx.globalAlpha = 1;
+
+    for (var i = 0; i < sandboxElements.length; i++) {
+      for (var j = i + 1; j < sandboxElements.length; j++) {
+        var a = sandboxElements[i], b = sandboxElements[j];
+        var dx2 = a.x - b.x, dy2 = a.y - b.y;
+        var dist = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+        if (dist < 130 && dist > 15) {
+          var alpha2 = (1 - dist / 130) * 0.2;
+          rctx.globalAlpha = alpha2;
+          rctx.beginPath(); rctx.moveTo(a.x * sx, a.y * sy); rctx.lineTo(b.x * sx, b.y * sy);
+          rctx.strokeStyle = '#c8aa78'; rctx.lineWidth = 0.6; rctx.stroke();
+        }
+      }
+    }
+    rctx.globalAlpha = 1;
+
+    for (var i = 0; i < sandboxConnections.length; i++) {
+      var conn = sandboxConnections[i];
+      var f = sbFindElement(conn.fromId), t2 = sbFindElement(conn.toId);
+      if (!f || !t2) continue;
+      rctx.globalAlpha = 0.15;
+      rctx.beginPath(); rctx.moveTo(f.x * sx, f.y * sy); rctx.lineTo(t2.x * sx, t2.y * sy);
+      rctx.strokeStyle = '#c8aa78'; rctx.lineWidth = 1; rctx.stroke();
+    }
+    rctx.globalAlpha = 1;
+
+    for (var i = 0; i < sandboxElements.length; i++) {
+      var el = sandboxElements[i];
+      if (el._orbitStarRef) {
+        var star = el._orbitStarRef;
+        var orbitR = el._orbitRadius || 80;
+        var ecc = el._orbitEccentricity || 0.6;
+        rctx.globalAlpha = 0.08;
+        rctx.strokeStyle = el.color; rctx.lineWidth = 0.6;
+        rctx.setLineDash([3, 5]);
+        rctx.beginPath();
+        rctx.ellipse(star.x * sx, star.y * sy, orbitR * sx, orbitR * sy * ecc, 0, 0, Math.PI * 2);
+        rctx.stroke();
+        rctx.setLineDash([]);
+      }
+    }
+    rctx.globalAlpha = 1;
+
+    for (var i = 0; i < sandboxElements.length; i++) {
+      var el = sandboxElements[i];
+      if (el._trail && el._trail.length > 2) {
+        for (var tt = 0; tt < el._trail.length; tt++) {
+          var tp = el._trail[tt];
+          rctx.globalAlpha = tp.alpha * 0.4;
+          rctx.fillStyle = el.color;
+          rctx.beginPath();
+          rctx.arc(tp.x * sx, tp.y * sy, Math.max(el.size * sx * 0.5 * tp.alpha, 0.5), 0, Math.PI * 2);
+          rctx.fill();
+        }
+      }
+    }
+    rctx.globalAlpha = 1;
+
+    for (var i = 0; i < sandboxElements.length; i++) {
+      var el = sandboxElements[i];
+      var ex = el.x * sx, ey = el.y * sy, es = Math.max(el.size * sx, 1.5);
+      var br2 = el.brightness / 100;
+
+      if (el.type === 'star') {
+        rctx.globalAlpha = br2 * 0.06;
+        rctx.fillStyle = el.color;
+        rctx.beginPath(); rctx.arc(ex, ey, es * 8, 0, Math.PI * 2); rctx.fill();
+        rctx.globalAlpha = br2 * 0.12;
+        rctx.beginPath(); rctx.arc(ex, ey, es * 5, 0, Math.PI * 2); rctx.fill();
+        rctx.globalAlpha = br2 * 0.25;
+        rctx.beginPath(); rctx.arc(ex, ey, es * 3, 0, Math.PI * 2); rctx.fill();
+        rctx.globalAlpha = 0.9;
+        rctx.shadowColor = el.color; rctx.shadowBlur = 20 * br2;
+        rctx.fillStyle = el.color;
+        rctx.beginPath(); rctx.arc(ex, ey, es, 0, Math.PI * 2); rctx.fill();
+        rctx.shadowBlur = 0;
+        rctx.globalAlpha = br2;
+        rctx.fillStyle = '#fff';
+        rctx.beginPath(); rctx.arc(ex, ey, es * 0.4, 0, Math.PI * 2); rctx.fill();
+        if (br2 > 0.3 && es > 2) {
+          for (var f = 0; f < 4; f++) {
+            var fa = f * Math.PI / 2 + 0.3;
+            var flen = es * 2;
+            rctx.globalAlpha = br2 * 0.25;
+            rctx.strokeStyle = el.color; rctx.lineWidth = 0.5;
+            rctx.beginPath();
+            rctx.moveTo(ex - Math.cos(fa) * flen, ey - Math.sin(fa) * flen);
+            rctx.lineTo(ex + Math.cos(fa) * flen, ey + Math.sin(fa) * flen);
+            rctx.stroke();
+          }
+        }
+      } else if (el.type === 'planet') {
+        rctx.shadowColor = el.color; rctx.shadowBlur = 8;
+        rctx.globalAlpha = 0.8;
+        rctx.fillStyle = el.color;
+        rctx.beginPath(); rctx.arc(ex, ey, es, 0, Math.PI * 2); rctx.fill();
+        var lg = rctx.createRadialGradient(ex - es * 0.3, ey - es * 0.3, 0, ex, ey, es);
+        lg.addColorStop(0, 'rgba(255,255,255,0.2)');
+        lg.addColorStop(1, 'rgba(0,0,0,0.2)');
+        rctx.globalAlpha = 1;
+        rctx.fillStyle = lg;
+        rctx.beginPath(); rctx.arc(ex, ey, es, 0, Math.PI * 2); rctx.fill();
+        rctx.shadowBlur = 0;
+        if (es > 3) {
+          rctx.globalAlpha = 0.2;
+          rctx.strokeStyle = el.color; rctx.lineWidth = 1;
+          rctx.beginPath();
+          rctx.ellipse(ex, ey, es * 2, es * 0.6, 0.3, 0, Math.PI * 2);
+          rctx.stroke();
+        }
+      } else if (el.type === 'nebula') {
+        var nebColors = [el.color, shiftColor(el.color, 30), shiftColor(el.color, -30)];
+        for (var layer = 0; layer < 3; layer++) {
+          var layerSize = es * (1 + layer * 0.4);
+          for (var c = 0; c < 6; c++) {
+            var angle2 = (c / 6) * Math.PI * 2 + layer * 0.5;
+            var dist2 = es * 0.25;
+            var cx = ex + Math.cos(angle2) * dist2;
+            var cy = ey + Math.sin(angle2) * dist2;
+            rctx.globalAlpha = br2 * 0.03;
+            rctx.fillStyle = nebColors[layer];
+            rctx.shadowColor = nebColors[layer]; rctx.shadowBlur = 20;
+            rctx.beginPath();
+            rctx.arc(cx, cy, layerSize * 0.35, 0, Math.PI * 2);
+            rctx.fill();
+          }
+        }
+        rctx.shadowBlur = 0;
+        rctx.globalAlpha = br2 * 0.1;
+        rctx.shadowColor = el.color; rctx.shadowBlur = 25;
+        rctx.beginPath(); rctx.arc(ex, ey, es * 0.3, 0, Math.PI * 2); rctx.fill();
+        rctx.shadowBlur = 0;
+      } else if (el.type === 'meteor') {
+        rctx.shadowColor = el.color; rctx.shadowBlur = 8;
+        rctx.globalAlpha = 0.9;
+        rctx.fillStyle = el.color;
+        rctx.beginPath(); rctx.arc(ex, ey, es, 0, Math.PI * 2); rctx.fill();
+        rctx.shadowBlur = 0;
+        rctx.globalAlpha = br2;
+        rctx.fillStyle = '#fff';
+        rctx.beginPath(); rctx.arc(ex, ey, es * 0.4, 0, Math.PI * 2); rctx.fill();
+        var trailLen = es * 10;
+        for (var t = 0; t < 5; t++) {
+          var tAlpha = br2 * (1 - t / 5) * 0.4;
+          var tSize = es * (1 - t * 0.15);
+          var tx2 = ex - (trailLen / 5) * t;
+          var ty2 = ey + (trailLen * 0.3 / 5) * t;
+          rctx.globalAlpha = tAlpha;
+          rctx.fillStyle = el.color;
+          rctx.beginPath(); rctx.arc(tx2, ty2, tSize, 0, Math.PI * 2); rctx.fill();
+        }
+        var tg = rctx.createLinearGradient(ex, ey, ex - trailLen, ey + trailLen * 0.3);
+        tg.addColorStop(0, el.color);
+        tg.addColorStop(0.4, 'rgba(200, 200, 255, 0.25)');
+        tg.addColorStop(1, 'transparent');
+        rctx.globalAlpha = br2 * 0.4;
+        rctx.strokeStyle = tg; rctx.lineWidth = es * 0.4; rctx.lineCap = 'round';
+        rctx.beginPath(); rctx.moveTo(ex, ey); rctx.lineTo(ex - trailLen, ey + trailLen * 0.3); rctx.stroke();
+      }
+      rctx.globalAlpha = 1;
+
+      if (el.name) {
+        rctx.globalAlpha = 0.35;
+        rctx.fillStyle = '#a09890';
+        rctx.font = Math.max(10, 12 * sx) + 'px "PingFang SC", "Noto Serif SC", sans-serif';
+        rctx.textAlign = 'center';
+        rctx.fillText(el.name, ex, ey + es + 14 * sy);
+        rctx.globalAlpha = 1;
+      }
+    }
+    rctx.globalAlpha = 1;
+
+    for (var i = 0; i < sbEpicEvents.length; i++) {
+      var ev = sbEpicEvents[i];
+      if (ev.type === 'supernova') {
+        var evProgress = 1 - ev.life / ev.maxLife;
+        rctx.globalAlpha = (1 - evProgress) * 0.5;
+        var snG = rctx.createRadialGradient(ev.x * sx, ev.y * sy, 0, ev.x * sx, ev.y * sy, 150 * evProgress * sx);
+        snG.addColorStop(0, 'rgba(255,255,255,0.4)');
+        snG.addColorStop(0.5, 'rgba(200,170,120,0.2)');
+        snG.addColorStop(1, 'transparent');
+        rctx.fillStyle = snG;
+        rctx.beginPath(); rctx.arc(ev.x * sx, ev.y * sy, 150 * evProgress * sx, 0, Math.PI * 2); rctx.fill();
+      }
+    }
+    rctx.globalAlpha = 1;
+
+    rctx.globalAlpha = 0.25;
+    rctx.fillStyle = '#c8aa78';
+    rctx.font = '13px "PingFang SC", "Noto Serif SC", sans-serif';
+    rctx.textAlign = 'center';
+    rctx.fillText('星空沙盘', w / 2, h - 12);
+    rctx.globalAlpha = 1;
+  }
+
+  function sbGeneratePoem(stars, planets, nebulas, meteors, connections) {
+    var parts = [];
+    if (stars > 0) {
+      var sl = [
+        stars + ' 颗星辰点亮了这片夜空',
+        '星子散落，如同你心底未曾说出的话',
+        stars + ' 点星光，在黑暗中彼此守望',
+        '你种下了 ' + stars + ' 颗星辰，它们在寂静中呼吸'
+      ];
+      parts.push(sl[Math.floor(Math.random() * sl.length)]);
+    }
+    if (planets > 0) {
+      var pl = [
+        planets + ' 颗行星缓缓运转，各有其轨道',
+        '行星孤独而坚定，在各自的轨迹上沉默前行',
+        planets + ' 个世界，在星空间安静旋转'
+      ];
+      parts.push(pl[Math.floor(Math.random() * pl.length)]);
+    }
+    if (nebulas > 0) {
+      var nl = [
+        nebulas + ' 片星云弥漫，是恒星诞生的摇篮',
+        '星云如雾如幻，藏着宇宙最深的温柔',
+        '朦胧的星云里，孕育着尚未命名的光'
+      ];
+      parts.push(nl[Math.floor(Math.random() * nl.length)]);
+    }
+    if (meteors > 0) {
+      var ml = [
+        meteors + ' 道流星划过，每一道都是一个来不及许的愿望',
+        '流星是夜的笔触，短暂却绚烂',
+        '转瞬即逝的光芒，是宇宙在向你眨眼'
+      ];
+      parts.push(ml[Math.floor(Math.random() * ml.length)]);
+    }
+    if (connections > 0) {
+      var cl = [
+        connections + ' 条星线相连，织成你心中的星座',
+        '星辰之间的连线，是沉默者之间的对话',
+        '你把这些光连在一起，便有了属于你自己的星图'
+      ];
+      parts.push(cl[Math.floor(Math.random() * cl.length)]);
+    }
+    if (parts.length === 0) return '这片星空还很安静，等待你的第一颗星。';
+    var closings = [
+      '这是你的星空，此刻只属于你。',
+      '在这片你亲手布置的夜空里，一切都很安全。',
+      '不需要解释这片星空的意义，它存在，便已足够。'
+    ];
+    parts.push(closings[Math.floor(Math.random() * closings.length)]);
+    return parts.join('。');
+  }
+
+  function sbGeneratePsychAnalysis(stars, planets, nebulas, meteors, connections, totalEl) {
+    var sections = [];
+    var total = totalEl;
+    if (total === 0) {
+      sections.push({ title: '心理分析', text: '你的星空还很安静——也许你正在观察和准备，还没有迈出第一步。这种谨慎本身也是一种有意义的姿态。' });
+      return sections;
+    }
+
+    var parts = [];
+
+    if (stars > 0) {
+      if (stars === 1) {
+        parts.push('你只放置了一颗恒星，这可能意味着你的内心有一个非常明确的核心驱动力或信念。单星模式常见于那些正在寻找"锚点"的人——你需要一个稳定的参照来组织其余的生活经验。');
+      } else if (stars <= 3) {
+        parts.push('少数几颗恒星表明你的内在能量是集中的，你有几个重要的价值支点。这种配置暗示着你倾向于在少数关键关系或目标上投入较深的情感。');
+      } else {
+        parts.push('多颗恒星散布在夜空中，显示出你是一个内在能量充沛、多面向的人。你同时被多个目标或关系吸引着，这既是创造力的来源，也可能带来注意力的分散。');
+      }
+    }
+
+    if (planets > 0) {
+      if (planets <= 2) {
+        parts.push('你放置了少量行星，暗示你在关系中倾向于深度而非广度。你更愿意围绕重要的核心建立稳定而亲密的联结。');
+      } else {
+        parts.push('多颗行星反映出你拥有丰富的关系网络和多层次的兴趣。你善于在不同的角色和情境之间切换，但需要注意是否有时会感到被拉扯。');
+      }
+    }
+
+    if (nebulas > 0) {
+      if (nebulas > 2) {
+        parts.push('多片星云表明你的内心世界非常丰饶，有大量未经表达的情感和想象力。你可能正处于一个内在转化的阶段，许多东西正在酝酿但尚未完全显化。');
+      } else {
+        parts.push('星云象征着潜意识中正在孕育的东西——可能是尚未成型的情感、创意或人生方向。这片星云是你内心深处某种柔软情绪的投射，也许是一种温柔的忧郁或期待。');
+      }
+    }
+
+    if (meteors > 0) {
+      parts.push('流星代表着那些短暂却强烈的体验——灵感、冲动、转瞬即逝的情感。');
+      if (meteors > 2) {
+        parts.push('多道流星暗示你内心有许多未完成的念头和来不及消化的体验。你可能是一个容易被瞬间美感打动的人，但也需要注意持久力的培养。');
+      }
+    }
+
+    if (connections > 0) {
+      if (connections <= 2) {
+        parts.push('你选择了少量而精确的连线，说明你在关系中重视质量而非数量。这些连线可能代表了你心中特别珍视的纽带。');
+      } else {
+        parts.push('密集的连线网络显示出你是一个高度关联型的人，你善于看到事物之间的联系。这可能意味着你有很强的系统思维能力，但有时也会被关系的复杂度所消耗。');
+      }
+    }
+
+    if (stars > planets && stars > nebulas) {
+      parts.push('总体而言，你的星空以恒星为主导，说明你是一个内在驱动力很强的人。你倾向于先确立自己的核心，再让其他事物围绕它展开。');
+    } else if (planets > stars) {
+      parts.push('你的星空中行星更为突出，暗示你更关注"围绕什么在运转"——你可能是一个适应性很强、善于在关系中寻找定位的人。');
+    } else if (nebulas >= stars) {
+      parts.push('星云在你的星空中占据重要位置，这表明你是一个感性而富有想象力的人，内心有许多尚未完全成形但非常有潜力的东西。');
+    } else {
+      parts.push('你的星空呈现出一种多元的平衡——各种元素都有体现，说明你的内在世界是丰富而有层次的。');
+    }
+
+    sections.push({ title: '心理分析', text: parts.join('') });
+
+    if (sandboxElements.length >= 2) {
+      var avgX = 0, avgY = 0, spreadX = 0, spreadY = 0;
+      for (var i = 0; i < sandboxElements.length; i++) {
+        avgX += sandboxElements[i].x; avgY += sandboxElements[i].y;
+      }
+      avgX /= sandboxElements.length; avgY /= sandboxElements.length;
+      for (var i = 0; i < sandboxElements.length; i++) {
+        spreadX += Math.pow(sandboxElements[i].x - avgX, 2);
+        spreadY += Math.pow(sandboxElements[i].y - avgY, 2);
+      }
+      spreadX = Math.sqrt(spreadX / sandboxElements.length);
+      spreadY = Math.sqrt(spreadY / sandboxElements.length);
+      var spread = (spreadX + spreadY) / 2;
+      var spatial = [];
+      if (spread < 120) {
+        spatial.push('你的天体分布非常集中，这可能反映出你倾向于聚焦于某个特定的心理空间或情感领域。');
+      } else if (spread < 300) {
+        spatial.push('天体的分布比较均衡，说明你的心理空间既不过于拥挤也不过于空旷，处于一种舒适的状态。');
+      } else {
+        spatial.push('天体散布在较大的空间中，暗示你的注意力和情感能量分布在较广的领域，你可能是一个思维开阔但有时精力分散的人。');
+      }
+      sections.push({ title: '空间分布', text: spatial.join('') });
+    }
+
+    var closings = [
+      '以上分析基于投射心理学中的沙盘理论，你的星空布局反映了当前的内在状态。这不是诊断，而是一面镜子——帮助你看到自己内心世界的某种形状。',
+      '星空沙盘是一种投射性心理表达工具。你的每一个选择——放置什么、放在哪里、如何连接——都是内心世界的某种隐喻。这份分析旨在帮你看到这些模式。',
+      '投射心理学认为，当我们在自由的空间中创造时，无意识的内容会自然浮现。你的星空就是你内心地图的一种可视化——没有对错，只有真实。'
+    ];
+    sections.push({ title: '关于此分析', text: closings[Math.floor(Math.random() * closings.length)] });
+
+    return sections;
+  }
+
+  function sbRandomHealing() {
+    var msgs = [
+      '你已经做得很好了。这片星空就是你存在的证明——不需要解释，也不需要完美，它就是你此刻内心的样子。',
+      '有时候我们需要的只是停下来，看看自己创造的东西。你今晚的星空，已经比大多数人见过的都要美。',
+      '你不需要变成另外一个人。你此刻的样子，你心里装着的所有东西，都有它存在的意义。',
+      '允许自己有安静的时刻，允许自己不完美。星空之所以美，正因为它从不试图解释自己。',
+      '你比自己想象的要坚强。回头看，你已经走了很远的路，这片星空就是你来过的证据。',
+      '慢慢来，不着急。所有的成长都是悄无声息的——就像星云一样，看似没有变化，其实在慢慢扩散。',
+      '你值得被温柔对待，尤其是被你自己。对自己好一点，你值得拥有一个不那么辛苦的内心。',
+      '不需要每一件事都做到最好。你今晚随意撒下的星星，就已经足够好看。',
+      '你的感受都是真实的，不需要为任何情绪感到抱歉。难过就难过，开心就开心，这片星空容纳了所有。',
+      '你不需要向任何人证明什么。你的存在本身，就像夜空里的星星，不需要理由，也不需要批准。',
+      '今天的你辛苦了。这片星空是给你的礼物——你可以在这里歇一会儿，什么都不用想。',
+      '世界上只有一个你。你的独特不是缺陷，是你最值得珍惜的部分。',
+      '别害怕迷茫，迷茫说明你在认真思考。那些想不清楚的事，就让它先在星云里待一会儿。',
+      '你不必总是坚强。偶尔软弱也没关系，星空不会因为一颗暗淡的星就不美了。',
+      '给自己多一点耐心，就像你今晚放这些星星一样——一颗一颗地来，不用着急。',
+    ];
+    return msgs[Math.floor(Math.random() * msgs.length)];
+  }
+
+  function sbOpenViewMode() {
+    sbViewMode = true;
+    document.getElementById('sbResultView').classList.add('active');
+    var sc = 0, pc = 0, nc = 0, mc = 0;
+    var cc = sandboxConnections.length;
+    for (var i = 0; i < sandboxElements.length; i++) {
+      var t = sandboxElements[i].type;
+      if (t === 'star') sc++; else if (t === 'planet') pc++;
+      else if (t === 'nebula') nc++; else if (t === 'meteor') mc++;
+    }
+    document.getElementById('sbResultStats').textContent = sc + ' 颗恒星 · ' + pc + ' 颗行星 · ' + nc + ' 片星云 · ' + mc + ' 道流星 · ' + cc + ' 条连线';
+    sbExportDescription = sbGeneratePoem(sc, pc, nc, mc, cc);
+    document.getElementById('sbResultDescription').textContent = sbExportDescription;
+
+    var container = document.getElementById('sbPsychContainer');
+    container.innerHTML = '';
+    if (sandboxElements.length > 0) {
+      var sections = sbGeneratePsychAnalysis(sc, pc, nc, mc, cc, sandboxElements.length);
+      for (var s = 0; s < sections.length; s++) {
+        var sec = document.createElement('div');
+        sec.className = 'sb-psych-section';
+        var titleEl = document.createElement('div');
+        titleEl.className = 'sb-psych-title';
+        titleEl.textContent = sections[s].title;
+        var textEl = document.createElement('div');
+        textEl.className = 'sb-psych-text';
+        textEl.textContent = sections[s].text;
+        sec.appendChild(titleEl);
+        sec.appendChild(textEl);
+        container.appendChild(sec);
+      }
+    }
+
+    var healingEl = document.getElementById('sbHealingContainer');
+    healingEl.innerHTML = '';
+    if (sandboxElements.length > 0) {
+      var wrap = document.createElement('div');
+      wrap.className = 'sb-result-divider';
+      healingEl.appendChild(wrap);
+      var hDiv = document.createElement('div');
+      hDiv.className = 'sb-healing';
+      var label = document.createElement('div');
+      label.className = 'sb-healing-label';
+      label.textContent = '今日心灵寄语';
+      var hText = document.createElement('div');
+      hText.className = 'sb-healing-text';
+      hText.textContent = sbRandomHealing();
+      hDiv.appendChild(label);
+      hDiv.appendChild(hText);
+      healingEl.appendChild(hDiv);
+    }
+
+    var rc = document.getElementById('sbResultCanvas');
+    rc.width = 760; rc.height = 760;
+    sbRenderToCanvas(rc, 760, 760);
+  }
+
+  function sbCloseViewMode() {
+    sbViewMode = false;
+    document.getElementById('sbResultView').classList.remove('active');
+    document.getElementById('sbPsychContainer').innerHTML = '';
+    document.getElementById('sbHealingContainer').innerHTML = '';
+  }
+
+  function sbExportSandbox() {
+    var cardW = 420;
+    var padX = 30;
+    var contentW = cardW - padX * 2;
+    var canvasH = 360;
+
+    var mCtx = document.createElement('canvas').getContext('2d');
+
+    var sections = sandboxElements.length > 0 ? sbGeneratePsychAnalysis(
+      sandboxElements.filter(function(e){return e.type==='star';}).length,
+      sandboxElements.filter(function(e){return e.type==='planet';}).length,
+      sandboxElements.filter(function(e){return e.type==='nebula';}).length,
+      sandboxElements.filter(function(e){return e.type==='meteor';}).length,
+      sandboxConnections.length,
+      sandboxElements.length
+    ) : [];
+
+    var healText = sbRandomHealing();
+    var sc = sandboxElements.filter(function(e){return e.type==='star';}).length;
+    var pc = sandboxElements.filter(function(e){return e.type==='planet';}).length;
+    var nc = sandboxElements.filter(function(e){return e.type==='nebula';}).length;
+    var mc = sandboxElements.filter(function(e){return e.type==='meteor';}).length;
+    var cc = sandboxConnections.length;
+
+    var descLines = wrapText(sbExportDescription, contentW - 10, mCtx);
+
+    var sectionData = [];
+    var psychTotalH = 0;
+    for (var i = 0; i < sections.length; i++) {
+      var sec = sections[i];
+      var tLines = wrapText(sec.title, contentW - 24, mCtx);
+      var sLines = wrapText(sec.text, contentW - 24, mCtx);
+      var secH = tLines.length * 20 + sLines.length * 18 + 8;
+      psychTotalH += secH;
+      sectionData.push({ sec: sec, tLines: tLines, sLines: sLines, secH: secH });
+    }
+
+    var hLines = wrapText(healText, contentW - 30, mCtx);
+    var healingBoxH = hLines.length * 20 + 40;
+
+    var totalH = canvasH + 40 + 28 + 22 + 18 + 16 + descLines.length * 20 + 16 + psychTotalH + 16 + healingBoxH + 20;
+
+    var expCv = document.createElement('canvas');
+    var scale = 2;
+    expCv.width = cardW * scale;
+    expCv.height = totalH * scale;
+    var ctx = expCv.getContext('2d');
+    ctx.scale(scale, scale);
+
+    var cGrad = ctx.createLinearGradient(0, 0, 0, totalH);
+    cGrad.addColorStop(0, '#12101a');
+    cGrad.addColorStop(1, '#0a0a10');
+    ctx.fillStyle = cGrad;
+    roundRect(ctx, 0, 0, cardW, totalH, 16);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(200,170,120,0.15)';
+    ctx.lineWidth = 1;
+    roundRect(ctx, 0, 0, cardW, totalH, 16);
+    ctx.stroke();
+
+    var y = 0;
+
+    var starCv = document.getElementById('sbResultCanvas');
+    ctx.save();
+    roundRect(ctx, padX, y, contentW, canvasH, 10);
+    ctx.clip();
+    ctx.drawImage(starCv, padX, y, contentW, canvasH);
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(200,170,120,0.1)';
+    ctx.lineWidth = 1;
+    roundRect(ctx, padX, y, contentW, canvasH, 10);
+    ctx.stroke();
+    y += canvasH + 40;
+
+    ctx.fillStyle = '#c8aa78';
+    ctx.font = '22px "PingFang SC", "Noto Serif SC", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('你的星空沙盘', cardW / 2, y + 22);
+    y += 28;
+
+    ctx.fillStyle = '#706860';
+    ctx.font = '13px "PingFang SC", "Noto Serif SC", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(sc + ' 颗恒星 · ' + pc + ' 颗行星 · ' + nc + ' 片星云 · ' + mc + ' 道流星 · ' + cc + ' 条连线', cardW / 2, y + 16);
+    y += 22;
+
+    drawDivider(ctx, padX, y, contentW);
+    y += 16;
+
+    ctx.fillStyle = '#a09890';
+    ctx.font = '14px "PingFang SC", "Noto Serif SC", sans-serif';
+    ctx.textAlign = 'center';
+    for (var i = 0; i < descLines.length; i++) {
+      ctx.fillText(descLines[i], cardW / 2, y + 18 + i * 20);
+    }
+    y += descLines.length * 20 + 16;
+
+    drawDivider(ctx, padX, y, contentW);
+    y += 16;
+
+    ctx.textAlign = 'left';
+    for (var i = 0; i < sectionData.length; i++) {
+      var sd = sectionData[i];
+      ctx.fillStyle = 'rgba(200,170,120,0.35)';
+      ctx.fillRect(padX, y + 2, 2, 16);
+      ctx.fillStyle = '#c8aa78';
+      ctx.font = '15px "PingFang SC", "Noto Serif SC", sans-serif';
+      for (var t = 0; t < sd.tLines.length; t++) {
+        ctx.fillText(sd.tLines[t], padX + 12, y + 15 + t * 20);
+      }
+      var titleH = sd.tLines.length * 20;
+      ctx.fillStyle = '#a09890';
+      ctx.font = '13px "PingFang SC", "Noto Serif SC", sans-serif';
+      for (var j = 0; j < sd.sLines.length; j++) {
+        ctx.fillText(sd.sLines[j], padX + 12, y + titleH + 16 + j * 18);
+      }
+      y += sd.secH;
+    }
+
+    drawDivider(ctx, padX, y, contentW);
+    y += 16;
+
+    ctx.fillStyle = 'rgba(200,170,120,0.04)';
+    roundRect(ctx, padX, y, contentW, healingBoxH, 10);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(200,170,120,0.08)';
+    ctx.lineWidth = 1;
+    roundRect(ctx, padX, y, contentW, healingBoxH, 10);
+    ctx.stroke();
+
+    ctx.fillStyle = '#706860';
+    ctx.font = '11px "PingFang SC", "Noto Serif SC", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('今日心灵寄语', cardW / 2, y + 18);
+    ctx.fillStyle = '#c8aa78';
+    ctx.font = 'italic 14px "PingFang SC", "Noto Serif SC", sans-serif';
+    for (var i = 0; i < hLines.length; i++) {
+      ctx.fillText(hLines[i], cardW / 2, y + 36 + i * 20);
+    }
+
+    var link = document.createElement('a');
+    link.download = '星空沙盘卡片-' + Date.now() + '.png';
+    link.href = expCv.toDataURL('image/png');
+    link.click();
+
+    var toast = document.getElementById('sbSaveToast');
+    toast.textContent = '星空卡片已导出';
+    toast.classList.add('visible');
+    setTimeout(function() { toast.classList.remove('visible'); }, 2000);
+  }
+
+  function sbClearSandbox() {
+    sandboxElements = []; sandboxConnections = [];
+    sbClickEffects = []; sbStardustTrail = []; sbEpicEvents = [];
+    sandboxSelectedId = null; sandboxConnectFrom = null;
+  }
+
+  function sbAnimate(ts) {
+    sbRender(ts);
+    requestAnimationFrame(sbAnimate);
+  }
+
+  /* ===== PUBLIC OPEN/CLOSE ===== */
+  window.sbOpenSandbox = function() {
+    var overlay = document.getElementById('starSandbox');
+    overlay.classList.add('active');
+    document.getElementById('sbReturnBtn').style.display = 'block';
+    sbInitCanvas();
+    sbBindEvents();
+    sandboxElements = []; sandboxConnections = [];
+    sbClickEffects = []; sbStardustTrail = []; sbEpicEvents = [];
+    sandboxTool = 'star'; sandboxSelectedId = null;
+    sandboxConnectFrom = null; sandboxDragging = false;
+    sbViewMode = false;
+    sbSetTool('star');
+    document.getElementById('sbResultView').classList.remove('active');
+    document.addEventListener('keydown', sbHandleKeydown);
+    requestAnimationFrame(sbAnimate);
+  };
+
+  window.sbCloseSandbox = function() {
+    var overlay = document.getElementById('starSandbox');
+    overlay.classList.remove('active');
+    document.getElementById('sbReturnBtn').style.display = 'none';
+    document.removeEventListener('keydown', sbHandleKeydown);
+    sandboxElements = []; sandboxConnections = [];
+    sbClickEffects = []; sbStardustTrail = []; sbEpicEvents = [];
+    sandboxSelectedId = null; sandboxConnectFrom = null;
+  };
+
+  /* ===== EVENT BINDINGS ===== */
+  document.getElementById('sbReturnBtn').addEventListener('click', function() {
+    sbCloseSandbox();
+  });
+
+  document.querySelectorAll('#sandboxTools .tool-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      sbSetTool(btn.dataset.tool);
+    });
+  });
+
+  document.getElementById('sbViewResult').addEventListener('click', function() {
+    if (sandboxElements.length === 0) return;
+    sbOpenViewMode();
+  });
+
+  document.getElementById('sbResultClose').addEventListener('click', sbCloseViewMode);
+  document.getElementById('sbResultBack').addEventListener('click', sbCloseViewMode);
+  document.getElementById('sbResultView').addEventListener('click', function(e) {
+    if (e.target === this) sbCloseViewMode();
+  });
+
+  document.getElementById('sbExport').addEventListener('click', sbExportSandbox);
+  document.getElementById('sbResultExport').addEventListener('click', sbExportSandbox);
+
+  document.getElementById('sbClear').addEventListener('click', function() {
+    if (sandboxElements.length === 0) return;
+    sbClearSandbox();
+  });
+
+  document.getElementById('sbSupernova').addEventListener('click', function() {
+    sbTriggerSupernova();
+  });
+
+  /* Window resize */
+  window.addEventListener('resize', function() {
+    var overlay = document.getElementById('starSandbox');
+    if (overlay.classList.contains('active')) {
+      sbInitCanvas();
+    }
+  });
+})();
+</script>
+</body>
+</html>
