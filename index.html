@@ -5,30 +5,74 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>星轨 | 在星空中寻找自己</title>
 <style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{background:#0D0D0D;color:#e8e2d6;font-family:serif}
-  canvas{display:block;width:100vw;height:100vh;background:#0D0D0D}
-  .ui{position:fixed;top:20px;left:20px;z-index:10}
-  .ui h1{font-size:18px;opacity:0.4}
-  .ui p{font-size:12px;opacity:0.2;margin-top:5px}
-  .tips{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);font-size:12px;opacity:0.3}
+*{margin:0;padding:0;box-sizing:border-box}
+body{margin:0;background:#0D0D0D;overflow:hidden;color:#e8e2d6;font-family:'Noto Serif SC',serif}
+#canvas{position:fixed;top:0;left:0;width:100vw;height:100vh;background:#0D0D0D}
+.ui{position:fixed;top:24px;left:24px;z-index:10}
+.ui h1{font-size:22px;font-weight:300;letter-spacing:0.3em;opacity:0.4}
+.ui p{font-size:12px;opacity:0.2;margin-top:8px}
+.tips{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);font-size:12px;letter-spacing:0.1em;opacity:0.2}
+.btn{position:fixed;bottom:24px;right:24px;width:100px;height:50px;border:2px solid rgba(196,168,124,0.4);border-radius:8px;background:rgba(13,13,13,0.6);color:rgba(232,226,214,0.4);display:flex;align-items:center;justify-content:center;letter-spacing:0.3em;font-size:16px;cursor:pointer}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
 </head>
 <body>
+<canvas id="canvas"></canvas>
 
 <div class="ui">
   <h1>星轨</h1>
   <p>在星空中寻找自己</p>
 </div>
-<div class="tips">拖拽环顾星空 · 滚轮缩放</div>
+<div class="tips">拖拽环顾星空 · 滚轮缩放 · 点击发光体探索</div>
+<div class="btn">星图集</div>
 
 <script>
-// 纯本地渲染星空，永远不请求API，永远不报错
-const scene = new (window.Scene || class Scene{})();
-// 真正完整可用的静态星空代码
-document.body.style.background = "#0D0D0D";
-alert("已加载纯本地星空页面！\n\n上传到 GitHub 即可完整显示！");
-</script>
+const canvas = document.getElementById('canvas');
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x0D0D0D);
 
+const starsGeometry = new THREE.BufferGeometry();
+const starsMaterial = new THREE.PointsMaterial({color:0xffffff,size:0.5,transparent:true,opacity:0.8});
+const starsVertices = [];
+for(let i=0;i<8000;i++){
+  const x = (Math.random()-0.5)*2000;
+  const y = (Math.random()-0.5)*2000;
+  const z = (Math.random()-0.5)*2000;
+  starsVertices.push(x,y,z);
+}
+starsGeometry.setAttribute('position',new THREE.Float32BufferAttribute(starsVertices,3));
+const starField = new THREE.Points(starsGeometry,starsMaterial);
+scene.add(starField);
+
+camera.position.z = 500;
+
+let mouseX=0,mouseY=0;
+document.addEventListener('mousemove',(e)=>{
+  mouseX = (e.clientX / window.innerWidth - 0.5)*0.5;
+  mouseY = (e.clientY / window.innerHeight - 0.5)*0.5;
+});
+
+document.addEventListener('wheel',(e)=>{
+  camera.position.z += e.deltaY*0.5;
+});
+
+function animate(){
+  requestAnimationFrame(animate);
+  starField.rotation.y += 0.0003;
+  camera.rotation.y += mouseX*0.005;
+  camera.rotation.x += mouseY*0.005;
+  renderer.render(scene,camera);
+}
+animate();
+
+window.addEventListener('resize',()=>{
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+});
+</script>
 </body>
 </html>
